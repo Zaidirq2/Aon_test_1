@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 3: Needleman-Wunsch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+
+.mxwrap{overflow-x:auto;padding:4px 0 10px}
+.mx{border-collapse:separate;border-spacing:3px;font-family:var(--mono)}
+.mx th{min-width:38px;height:30px;padding:0}
+.mx th .t{width:30px;height:28px}
+.mx th.idx{font-size:.7rem;color:var(--muted);font-weight:500}
+.mx td{min-width:40px;width:40px;height:40px;text-align:center;background:var(--soft);border-radius:6px;position:relative;font-weight:600;font-size:.95rem;padding:0;color:var(--ink)}
+.mx td .ar{position:absolute;top:1px;left:3px;font-size:.62rem;color:var(--muted);line-height:1.1;letter-spacing:-.5px}
+.mx td.empty{background:transparent;border:1px dashed var(--rule);color:transparent}
+.mx td.init{background:color-mix(in srgb,var(--muted) 14%,transparent)}
+.mx td.src{background:color-mix(in srgb,var(--accent) 22%,var(--soft))}
+.mx td.cur{outline:3px solid var(--accent);outline-offset:-1px}
+.mx td.path{background:var(--G);color:#1b1400}
+.mx td.path .ar{color:#1b1400}
+.mx td.ok{box-shadow:inset 0 0 0 2px var(--ok)}
+.mx td.no{box-shadow:inset 0 0 0 2px var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.mx td.click{cursor:pointer}
+.mx td.click:hover{filter:brightness(.94)}
+.mx input{width:36px;height:32px;text-align:center;font-family:var(--mono);font-size:.92rem;border:1.5px solid var(--rule);border-radius:5px;background:var(--surface);color:var(--ink);padding:0}
+.explain{font-size:.95rem;margin-top:10px}
+.explain .ln{display:flex;gap:10px;padding:4px 8px;border-radius:6px;flex-wrap:wrap}
+.explain .ln.best{background:color-mix(in srgb,var(--ok) 14%,transparent);font-weight:700}
+.explain .ln code{font-family:var(--mono)}
+.moves{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:640px){.moves{grid-template-columns:1fr}}
+.move{background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:12px}
+.move .g{font-family:var(--display);font-size:1.8rem;line-height:1}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctrl label{font-size:.85rem;color:var(--muted)}
+select{font:inherit;font-size:.9rem;padding:6px 8px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+input[type=number]{width:120px;font-family:var(--mono);font-size:1rem;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+.alts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li><a href="module-1-why-align.html">1 Why align?</a></li>
+    <li><a href="module-2-scoring-basics.html">2 Scoring basics</a></li>
+    <li class="on" aria-current="page">3 Needleman-Wunsch</li>
+    <li><a href="module-4-smith-waterman.html">4 Smith-Waterman</a></li>
+    <li><a href="module-5-scoring-matrices.html">5 Scoring matrices</a></li>
+    <li><a href="module-6-blast.html">6 BLAST</a></li>
+    <li><a href="module-7-multiple-alignment.html">7 Multiple alignment</a></li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>Global alignment, one cell at a time</h1>
+  <p class="lead">The Needleman-Wunsch algorithm (1970) finds the best global alignment without trying every possibility. It fills a table in which each cell stores the best score for aligning two prefixes, then follows arrows back from the last cell to read the alignment.</p>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>The idea: solve small problems first</h2></div>
+  <p>Trying every possible alignment is hopeless: two sequences of only 100 bases can be aligned in more than 10<sup>75</sup> different ways. Needleman-Wunsch uses <b>dynamic programming</b>: the best alignment of two long sequences is built from the best alignments of their shorter beginnings (prefixes).</p>
+  <p>Put sequence 1 down the side and sequence 2 across the top. Cell (i, j) holds the best score for aligning the first i bases of sequence 1 with the first j bases of sequence 2. Every cell is reached from one of three neighbours:</p>
+  <div class="moves">
+    <div class="move"><div class="g">↖</div><b>Diagonal</b><p class="hint">Align base i of sequence 1 with base j of sequence 2. Add the match or mismatch score.</p></div>
+    <div class="move"><div class="g">↑</div><b>From above</b><p class="hint">Align base i of sequence 1 with a gap. Add the gap penalty.</p></div>
+    <div class="move"><div class="g">←</div><b>From the left</b><p class="hint">Align base j of sequence 2 with a gap. Add the gap penalty.</p></div>
+  </div>
+  <div class="note key">S(i, j) = max { S(i−1, j−1) + s(aᵢ, bⱼ),  S(i−1, j) + gap,  S(i, j−1) + gap }<br>The first row and column are filled with multiples of the gap penalty, because aligning a prefix against nothing means gaps only. The final score sits in the bottom-right cell.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>Fill the matrix step by step</h2></div>
+  <p>Press <b>Next cell</b> to compute one cell at a time. The panel below the matrix shows the three candidate values and which one wins. Arrows in the corner of each cell record where the maximum came from; a cell can keep more than one arrow when values tie.</p>
+  <div class="panel">
+    <div class="tabs" id="nwTabs" role="group" aria-label="Choose example"></div>
+    <div class="ctrl" style="margin-top:12px">
+      <label for="pM">Match</label><select id="pM"><option>1</option><option>2</option><option>3</option></select>
+      <label for="pX">Mismatch</label><select id="pX"><option>-1</option><option>-2</option><option>-3</option><option>0</option></select>
+      <label for="pG">Gap</label><select id="pG"><option>-2</option><option>-1</option><option>-3</option><option>-4</option></select>
+    </div>
+    <div class="btns">
+      <button class="btn" id="bPrev" type="button">Previous</button>
+      <button class="btn solid" id="bNext" type="button">Next cell</button>
+      <button class="btn" id="bRow" type="button">Finish row</button>
+      <button class="btn" id="bAll" type="button">Fill all</button>
+      <button class="btn" id="bPlay" type="button">Play</button>
+      <button class="btn" id="bReset" type="button">Reset</button>
+    </div>
+    <div class="mxwrap" id="nwMx"></div>
+    <div class="explain" id="nwExplain" role="status"></div>
+    <details style="margin-top:12px">
+      <summary>Use your own sequences</summary>
+      <label class="f" for="ownA">Sequence 1, down the side (A, C, G, T; up to 12)</label>
+      <input type="text" id="ownA" value="TGCATA" maxlength="12" spellcheck="false" autocomplete="off">
+      <label class="f" for="ownB">Sequence 2, across the top</label>
+      <input type="text" id="ownB" value="ATCTGAT" maxlength="12" spellcheck="false" autocomplete="off">
+      <div class="btns"><button class="btn" id="ownLoad" type="button">Load sequences</button></div>
+      <div class="msg bad" id="ownMsg" role="status"></div>
+    </details>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>Traceback: reading the alignment</h2></div>
+  <p>Once the matrix is full, start at the bottom-right cell and follow the arrows back to the top-left. Each step writes one column of the alignment, from right to left: a diagonal step pairs two bases, a step up puts a gap in sequence 2, a step left puts a gap in sequence 1.</p>
+  <div class="panel">
+    <div class="btns">
+      <button class="btn solid" id="bTrace" type="button">Trace back</button>
+      <button class="btn" id="bTraceStep" type="button">Trace one step</button>
+    </div>
+    <div class="seqbox" id="trAln"></div>
+    <p class="hint" id="trText">Fill the whole matrix in section 2 first.</p>
+    <div class="alts" id="trAlts"></div>
+  </div>
+  <div class="note">When a cell holds two or three arrows, several paths give the same top score. These are <b>co-optimal alignments</b>: the algorithm guarantees the best score, not a unique alignment. Programs choose one by a fixed rule, such as "prefer diagonal", which is why two tools can return different alignments with identical scores.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>Exercise: fill it in, then trace it back</h2></div>
+  <p>Scoring: match +1, mismatch −1, gap −2. Type a value in every empty cell and press <b>Check</b>. When all values are correct, click the cells of the traceback path one at a time, starting next to the highlighted bottom-right cell. No arrows are shown: work out which neighbour produced each value.</p>
+  <div class="panel">
+    <div class="tabs" id="exTabs" role="group" aria-label="Choose exercise"></div>
+    <div class="btns">
+      <button class="btn solid" id="exCheck" type="button">Check</button>
+      <button class="btn" id="exReveal" type="button">Reveal values</button>
+      <button class="btn" id="exReset" type="button">Start again</button>
+    </div>
+    <div class="mxwrap" id="exMx"></div>
+    <div class="msg" id="exMsg" role="status"></div>
+    <div class="seqbox" id="exAln"></div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>The cost of being exact</h2></div>
+  <p>Needleman-Wunsch fills one cell for every pair of positions, so the work grows with the product of the two lengths: O(n × m) in time and in memory. Enter two sequence lengths to see what that means in practice.</p>
+  <div class="panel">
+    <div class="tabs" id="cxTabs" role="group" aria-label="Choose example sizes"></div>
+    <div class="ctrl" style="margin-top:12px">
+      <label for="cxN">Length 1 (bases)</label><input type="number" id="cxN" min="1" value="1500">
+      <label for="cxM">Length 2 (bases)</label><input type="number" id="cxM" min="1" value="1500">
+    </div>
+    <div class="stats" id="cxOut" style="margin-top:14px"></div>
+    <p class="hint">Estimates assume 4 bytes per stored score and one billion cells computed per second.</p>
+  </div>
+  <div class="note key">Exact dynamic programming is ideal for comparing two genes. It becomes impractical when one sequence is a whole genome or a database of millions of sequences. That is the problem heuristic tools such as BLAST solve (Module 6). Smith-Waterman (Module 4) uses the same table to find local similarities.</div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <div class="stephead"><span class="stepnum">6</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 3 of 7 · Bioinformatics, 4th-year Biotechnology · Needleman SB, Wunsch CD. J Mol Biol. 1970;48(3):443–453.</div></footer>
+
+<script>
+"use strict";
+const HBB = "ATGGTGCACCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAAC";
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+const fmt = v => (v>0?"+":"")+v;
+const D=1,U=2,L=4;
+const ARROW = p => (p&D?"↖":"")+(p&U?"↑":"")+(p&L?"←":"");
+
+/* ---------- core ---------- */
+function nwMatrix(a,b,s){
+  const n=a.length,m=b.length,S=[],P=[];
+  for(let i=0;i<=n;i++){ S.push(new Array(m+1).fill(0)); P.push(new Array(m+1).fill(0)); }
+  for(let i=1;i<=n;i++){ S[i][0]=i*s.gap; P[i][0]=U; }
+  for(let j=1;j<=m;j++){ S[0][j]=j*s.gap; P[0][j]=L; }
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    const d=S[i-1][j-1]+(a[i-1]===b[j-1]?s.match:s.mis), u=S[i-1][j]+s.gap, l=S[i][j-1]+s.gap, mx=Math.max(d,u,l);
+    S[i][j]=mx; P[i][j]=(d===mx?D:0)|(u===mx?U:0)|(l===mx?L:0);
+  }
+  return {S,P};
+}
+function enumPaths(a,b,P,limit){
+  const out=[];
+  (function go(i,j,cells,A,B){
+    if(out.length>=limit) return;
+    if(i===0&&j===0){ out.push({cells:[...cells,[0,0]],A,B}); return; }
+    const p=P[i][j], c=[...cells,[i,j]];
+    if(p&D) go(i-1,j-1,c,a[i-1]+A,b[j-1]+B);
+    if(p&U) go(i-1,j,c,a[i-1]+A,"-"+B);
+    if(p&L) go(i,j-1,c,"-"+A,b[j-1]+B);
+  })(a.length,b.length,[],"","");
+  return out;
+}
+function countPaths(a,b,P){
+  const n=a.length,m=b.length,C=Array.from({length:n+1},()=>new Array(m+1).fill(0)); C[0][0]=1;
+  for(let i=0;i<=n;i++) for(let j=0;j<=m;j++){ if(i===0&&j===0) continue; const p=P[i][j];
+    C[i][j]=(p&D?C[i-1][j-1]:0)+(p&U?C[i-1][j]:0)+(p&L?C[i][j-1]:0); }
+  return C[n][m];
+}
+
+/* ---------- rendering ---------- */
+function tileEl(ch){ return el("span","t "+(ch==="-"?"gap":ch),ch); }
+function alignRows(A,B){
+  const frag=document.createDocumentFragment();
+  const ra=el("div","row"), mid=el("div","row mid"), rb=el("div","row");
+  ra.appendChild(el("span","lbl","Seq 1")); mid.appendChild(el("span","lbl","")); rb.appendChild(el("span","lbl","Seq 2"));
+  for(let i=0;i<A.length;i++){ const x=A[i],y=B[i]; ra.appendChild(tileEl(x)); rb.appendChild(tileEl(y));
+    let s=" ",c="m"; if(x!=="-"&&y!=="-"){ if(x===y) s="|"; else {s="✕"; c="m x";} } mid.appendChild(el("span",c,s)); }
+  frag.append(ra,mid,rb); return frag;
+}
+/* opts: cell(i,j,td) customises a cell */
+function renderMatrix(box,a,b,cell){
+  box.innerHTML="";
+  const tb=el("table","mx"), head=el("tr"), idx=el("tr");
+  idx.appendChild(el("th")); idx.appendChild(el("th")); idx.appendChild(el("th","idx","0"));
+  for(let j=1;j<=b.length;j++) idx.appendChild(el("th","idx",String(j)));
+  head.appendChild(el("th")); head.appendChild(el("th")); head.appendChild(el("th","idx","–"));
+  for(let j=0;j<b.length;j++){ const th=el("th"); th.appendChild(tileEl(b[j])); head.appendChild(th); }
+  tb.append(idx,head);
+  for(let i=0;i<=a.length;i++){
+    const tr=el("tr");
+    tr.appendChild(el("th","idx",String(i)));
+    const th=el("th"); if(i===0) th.appendChild(el("span","idx","–")); else th.appendChild(tileEl(a[i-1])); tr.appendChild(th);
+    for(let j=0;j<=b.length;j++){ const td=el("td"); cell(i,j,td); tr.appendChild(td); }
+    tb.appendChild(tr);
+  }
+  box.appendChild(tb);
+}
+function makeTabs(container, items, onPick){
+  const btns=items.map((it,i)=>{ const b=el("button","btn",it.name); b.type="button"; b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",()=>{ btns.forEach(x=>{x.classList.remove("sel");x.setAttribute("aria-pressed","false");}); b.classList.add("sel"); b.setAttribute("aria-pressed","true"); onPick(it,i); });
+    container.appendChild(b); return b; });
+  btns[0].click(); return btns;
+}
+
+/* ---------- 2 & 3. stepper + traceback ---------- */
+const NW = {a:"",b:"",s:{match:1,mis:-1,gap:-2},S:null,P:null,k:0,path:null,trStep:0,timer:null};
+function cellOf(k){ const m=NW.b.length; return [Math.floor(k/m)+1, k%m+1]; }
+function total(){ return NW.a.length*NW.b.length; }
+function readScheme(){ NW.s={match:+$("#pM").value, mis:+$("#pX").value, gap:+$("#pG").value}; }
+function loadNW(a,b){ stopPlay(); NW.a=a; NW.b=b; readScheme(); const r=nwMatrix(a,b,NW.s); NW.S=r.S; NW.P=r.P; NW.k=0; NW.path=null; NW.trStep=0; renderNW(); }
+function renderNW(){
+  const {a,b,S,P,k}=NW, cur = k>0 ? cellOf(k-1) : null;
+  const onPath=new Set(); if(NW.path){ const lim=NW.trStep; NW.path.cells.slice(0,lim).forEach(([i,j])=>onPath.add(i+","+j)); }
+  const filled=(i,j)=> i===0||j===0 || ((i-1)*b.length+(j-1))<k;
+  renderMatrix($("#nwMx"),a,b,(i,j,td)=>{
+    if(!filled(i,j)){ td.className="empty"; td.textContent="·"; return; }
+    td.textContent=S[i][j];
+    if(i===0||j===0) td.classList.add("init");
+    if(P[i][j]){ const ar=el("span","ar",ARROW(P[i][j])); td.appendChild(ar); }
+    if(cur && !NW.path){ const [ci,cj]=cur;
+      if(i===ci&&j===cj) td.classList.add("cur");
+      else if((i===ci-1&&j===cj-1)||(i===ci-1&&j===cj)||(i===ci&&j===cj-1)) td.classList.add("src"); }
+    if(onPath.has(i+","+j)) td.classList.add("path");
+  });
+  /* explanation */
+  const ex=$("#nwExplain"); ex.innerHTML="";
+  if(!cur){ ex.appendChild(el("p","",`The first row and column are already filled: 0, ${NW.s.gap}, ${2*NW.s.gap}, ${3*NW.s.gap}… because aligning a prefix with nothing costs one gap per base. Press Next cell to compute cell (1, 1).`)); }
+  else {
+    const [i,j]=cur, x=a[i-1], y=b[j-1], sc=x===y?NW.s.match:NW.s.mis;
+    const d=S[i-1][j-1]+sc, u=S[i-1][j]+NW.s.gap, l=S[i][j-1]+NW.s.gap, mx=S[i][j];
+    ex.appendChild(el("p","",`Cell (${i}, ${j}): best score for aligning ${a.slice(0,i)} with ${b.slice(0,j)}.`));
+    const ln=(g,txt,v)=>{ const d0=el("div","ln"+(v===mx?" best":"")); d0.appendChild(el("span","",g)); const c=el("code","",txt); d0.appendChild(c); ex.appendChild(d0); };
+    ln("↖",`${S[i-1][j-1]} + ${sc} (${x} vs ${y}: ${x===y?"match":"mismatch"}) = ${d}`,d);
+    ln("↑",`${S[i-1][j]} + ${NW.s.gap} (${x} against a gap) = ${u}`,u);
+    ln("←",`${S[i][j-1]} + ${NW.s.gap} (${y} against a gap) = ${l}`,l);
+    ex.appendChild(el("p","hint",`Maximum = ${mx}. Stored arrow${ARROW(P[i][j]).length>1?"s":""}: ${ARROW(P[i][j])}`));
+  }
+  if(k===total()) ex.appendChild(el("p","",`Matrix complete. The optimal global alignment score is ${S[a.length][b.length]}, in the bottom-right cell. Continue to section 3 to trace it back.`));
+  $("#bPrev").disabled=k===0; $("#bNext").disabled=$("#bRow").disabled=$("#bAll").disabled=k===total();
+  renderTrace();
+}
+function renderTrace(){
+  const box=$("#trAln"), txt=$("#trText"), alts=$("#trAlts"); box.innerHTML=""; alts.innerHTML="";
+  const done=NW.k===total(); $("#bTrace").disabled=$("#bTraceStep").disabled=!done;
+  if(!done){ txt.textContent="Fill the whole matrix in section 2 first."; return; }
+  if(!NW.path){ txt.textContent="Press Trace back to follow the arrows from the bottom-right cell."; return; }
+  const p=NW.path, steps=NW.trStep, cols=Math.max(0,steps-1);
+  const A=p.A.slice(p.A.length-cols), B=p.B.slice(p.B.length-cols);
+  if(cols>0) box.appendChild(alignRows(A,B));
+  if(steps<p.cells.length) txt.textContent=`Built ${cols} of ${p.A.length} columns, from right to left.`;
+  else {
+    const n=countPaths(NW.a,NW.b,NW.P);
+    txt.textContent=`Complete. Score ${NW.S[NW.a.length][NW.b.length]}. This matrix contains ${n} co-optimal alignment${n===1?"":"s"}${n>1?"; choose one below to see its path.":"."}`;
+    if(n>1){ enumPaths(NW.a,NW.b,NW.P,12).forEach((alt,ix)=>{ const bt=el("button","btn",`Alignment ${ix+1}`); bt.type="button";
+      if(alt.A===p.A&&alt.B===p.B) bt.classList.add("sel");
+      bt.addEventListener("click",()=>{ NW.path=alt; NW.trStep=alt.cells.length; renderNW(); }); alts.appendChild(bt); });
+      if(n>12) alts.appendChild(el("span","hint",`Showing the first 12 of ${n}.`)); }
+  }
+}
+function stopPlay(){ if(NW.timer){ clearInterval(NW.timer); NW.timer=null; $("#bPlay").textContent="Play"; } }
+(function(){
+  const items=[
+    {name:"GATTACA vs GCATGCT", a:"GATTACA", b:"GCATGCT"},
+    {name:"Small: ACGT vs AGT", a:"ACGT", b:"AGT"},
+    {name:"Ties: GAATTC vs GATTC", a:"GAATTC", b:"GATTC"},
+    {name:"HBB: sickle cell", a:HBB.slice(12,24), b:HBB.slice(12,19)+"T"+HBB.slice(20,24)},
+    {name:"HBB: codon 8 deletion", a:HBB.slice(18,30), b:HBB.slice(18,24)+HBB.slice(26,30)}
+  ];
+  makeTabs($("#nwTabs"),items,it=>loadNW(it.a,it.b));
+  ["#pM","#pX","#pG"].forEach(s=>$(s).addEventListener("change",()=>loadNW(NW.a,NW.b)));
+  $("#bNext").addEventListener("click",()=>{ if(NW.k<total()){ NW.k++; NW.path=null; renderNW(); } });
+  $("#bPrev").addEventListener("click",()=>{ stopPlay(); if(NW.k>0){ NW.k--; NW.path=null; renderNW(); } });
+  $("#bRow").addEventListener("click",()=>{ const m=NW.b.length; NW.k=Math.min(total(),(Math.floor(NW.k/m)+1)*m); NW.path=null; renderNW(); });
+  $("#bAll").addEventListener("click",()=>{ stopPlay(); NW.k=total(); NW.path=null; renderNW(); });
+  $("#bReset").addEventListener("click",()=>{ stopPlay(); NW.k=0; NW.path=null; renderNW(); });
+  $("#bPlay").addEventListener("click",()=>{
+    if(NW.timer){ stopPlay(); return; }
+    if(NW.k===total()) NW.k=0;
+    $("#bPlay").textContent="Pause";
+    NW.timer=setInterval(()=>{ if(NW.k>=total()){ stopPlay(); return; } NW.k++; NW.path=null; renderNW(); },650);
+  });
+  const startTrace=()=>{ NW.path=enumPaths(NW.a,NW.b,NW.P,1)[0]; NW.trStep=0; };
+  $("#bTrace").addEventListener("click",()=>{ startTrace(); NW.trStep=NW.path.cells.length; renderNW(); });
+  $("#bTraceStep").addEventListener("click",()=>{ if(!NW.path||NW.trStep>=NW.path.cells.length) startTrace(); NW.trStep++; renderNW(); });
+  $("#ownLoad").addEventListener("click",()=>{
+    const a=$("#ownA").value.toUpperCase().replace(/\s/g,""), b=$("#ownB").value.toUpperCase().replace(/\s/g,"");
+    if(!/^[ACGT]{1,12}$/.test(a)||!/^[ACGT]{1,12}$/.test(b)){ $("#ownMsg").textContent="Use only A, C, G and T, between 1 and 12 bases per sequence."; return; }
+    $("#ownMsg").textContent=""; document.querySelectorAll("#nwTabs .btn").forEach(x=>x.classList.remove("sel")); loadNW(a,b);
+  });
+})();
+
+/* ---------- 4. exercise ---------- */
+(function(){
+  const sc={match:1,mis:-1,gap:-2};
+  const E={a:"",b:"",S:null,P:null,vals:{},marks:{},phase:"fill",path:[],revealed:false};
+  const items=[{name:"ACG vs AG",a:"ACG",b:"AG"},{name:"GATC vs GTC",a:"GATC",b:"GTC"},{name:"TGCA vs TCAA",a:"TGCA",b:"TCAA"}];
+  const msg=$("#exMsg");
+  function load(it){ E.a=it.a; E.b=it.b; const r=nwMatrix(it.a,it.b,sc); E.S=r.S; E.P=r.P; E.vals={}; E.marks={}; E.phase="fill"; E.path=[[it.a.length,it.b.length]]; E.revealed=false; msg.className="msg"; msg.textContent=""; $("#exAln").innerHTML=""; render(); }
+  function render(){
+    const n=E.a.length,m=E.b.length, cur=E.path[E.path.length-1];
+    const onPath=new Set(E.path.map(c=>c+""));
+    renderMatrix($("#exMx"),E.a,E.b,(i,j,td)=>{
+      const key=i+","+j;
+      if(i===0||j===0){ td.textContent=E.S[i][j]; td.classList.add("init"); }
+      else if(E.phase==="fill"){
+        const inp=el("input"); inp.type="text"; inp.inputMode="numeric"; inp.value=E.vals[key]??""; inp.setAttribute("aria-label",`Cell ${i}, ${j}`);
+        inp.addEventListener("input",()=>{ E.vals[key]=inp.value.trim(); delete E.marks[key]; td.classList.remove("ok","no"); });
+        td.appendChild(inp);
+        if(E.marks[key]) td.classList.add(E.marks[key]);
+      } else td.textContent=E.S[i][j];
+      if(E.phase==="trace"){
+        if(onPath.has(key)) td.classList.add("path");
+        const [ci,cj]=cur;
+        const nb=(i===ci-1&&j===cj-1)||(i===ci-1&&j===cj)||(i===ci&&j===cj-1);
+        if(nb && !(ci===0&&cj===0)){ td.classList.add("click"); td.tabIndex=0; td.setAttribute("role","button"); td.setAttribute("aria-label",`Step to cell ${i}, ${j}`);
+          const go=()=>step(i,j); td.addEventListener("click",go); td.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }); }
+      }
+    });
+  }
+  function step(i,j){
+    const [ci,cj]=E.path[E.path.length-1], p=E.P[ci][cj];
+    const dir = (i===ci-1&&j===cj-1)?D:(i===ci-1?U:L);
+    if(!(p&dir)){ msg.className="msg bad"; msg.textContent=`Cell (${i}, ${j}) cannot produce ${E.S[ci][cj]} in cell (${ci}, ${cj}). Check the three calculations again.`; return; }
+    E.path.push([i,j]); msg.className="msg"; msg.textContent="Correct step.";
+    if(i===0&&j===0){
+      let A="",B=""; for(let k=0;k<E.path.length-1;k++){ const [x,y]=E.path[k],[px,py]=E.path[k+1];
+        if(px===x-1&&py===y-1){A=E.a[x-1]+A;B=E.b[y-1]+B;} else if(px===x-1){A=E.a[x-1]+A;B="-"+B;} else {A="-"+A;B=E.b[y-1]+B;} }
+      msg.className="msg ok"; msg.textContent=`Traceback complete. Optimal score ${E.S[E.a.length][E.b.length]}. Your alignment:`;
+      const box=$("#exAln"); box.innerHTML=""; box.appendChild(alignRows(A,B));
+    }
+    render();
+  }
+  $("#exCheck").addEventListener("click",()=>{
+    if(E.phase!=="fill") return;
+    let wrong=0, empty=0;
+    for(let i=1;i<=E.a.length;i++) for(let j=1;j<=E.b.length;j++){ const key=i+","+j, v=E.vals[key];
+      if(v===undefined||v===""){ empty++; delete E.marks[key]; continue; }
+      if(+v===E.S[i][j]) E.marks[key]="ok"; else { E.marks[key]="no"; wrong++; } }
+    if(empty){ msg.className="msg bad"; msg.textContent=`${empty} cell${empty>1?"s are":" is"} still empty.${wrong?` ${wrong} filled cell${wrong>1?"s are":" is"} wrong (red).`:""}`; render(); return; }
+    if(wrong){ msg.className="msg bad"; msg.textContent=`${wrong} cell${wrong>1?"s are":" is"} wrong (red). Remember to compute row by row, because each cell depends on cells above and to its left.`; render(); return; }
+    E.phase="trace"; msg.className="msg ok"; msg.textContent=`All values correct${E.revealed?" (revealed)":""}. Now click the next cell on the traceback path, starting from the highlighted bottom-right cell.`; render();
+  });
+  $("#exReveal").addEventListener("click",()=>{ for(let i=1;i<=E.a.length;i++) for(let j=1;j<=E.b.length;j++) E.vals[i+","+j]=String(E.S[i][j]); E.revealed=true; E.marks={}; render(); });
+  $("#exReset").addEventListener("click",()=>load({a:E.a,b:E.b}));
+  makeTabs($("#exTabs"),items,load);
+})();
+
+/* ---------- 5. complexity ---------- */
+(function(){
+  const items=[
+    {name:"Two genes (1.5 kb)", n:1500, m:1500},
+    {name:"Two bacterial genomes (5 Mb)", n:5e6, m:5e6},
+    {name:"Human vs chimpanzee chromosome 1 (≈230 Mb)", n:2.3e8, m:2.3e8}
+  ];
+  const big=x=>x>=1e12?(x/1e12).toFixed(1)+" trillion":x>=1e9?(x/1e9).toFixed(1)+" billion":x>=1e6?(x/1e6).toFixed(1)+" million":Math.round(x).toLocaleString("en");
+  const bytes=x=>x>=1e15?(x/1e15).toFixed(1)+" PB":x>=1e12?(x/1e12).toFixed(1)+" TB":x>=1e9?(x/1e9).toFixed(1)+" GB":x>=1e6?(x/1e6).toFixed(1)+" MB":x>=1e3?(x/1e3).toFixed(1)+" kB":x+" bytes";
+  const time=s=>s<1?(s*1000).toFixed(s<0.01?3:1)+" ms":s<60?s.toFixed(1)+" s":s<3600?(s/60).toFixed(1)+" min":s<86400*2?(s/3600).toFixed(1)+" h":(s/86400).toFixed(1)+" days";
+  function upd(){
+    const n=Math.max(1,+$("#cxN").value||1), m=Math.max(1,+$("#cxM").value||1), c=(n+1)*(m+1), out=$("#cxOut"); out.innerHTML="";
+    for(const [k,v] of [["Cells",big(c)],["Memory",bytes(c*4)],["Time",time(c/1e9)]]){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",v)); out.appendChild(d); }
+  }
+  makeTabs($("#cxTabs"),items,it=>{ $("#cxN").value=it.n; $("#cxM").value=it.m; upd(); });
+  ["#cxN","#cxM"].forEach(s=>$(s).addEventListener("input",()=>{ document.querySelectorAll("#cxTabs .btn").forEach(x=>x.classList.remove("sel")); upd(); }));
+})();
+
+/* ---------- 6. quiz ---------- */
+(function(){
+  const Q=[
+    {q:"What does cell (i, j) of the Needleman-Wunsch matrix contain?", o:["The number of matches up to position i","The best score for aligning the first i bases of sequence 1 with the first j bases of sequence 2","The score of aligning base i with base j only","The percent identity of the two sequences"], a:1, w:"Each cell stores the optimal score of aligning two prefixes. The bottom-right cell therefore holds the score for the complete sequences."},
+    {q:"With a gap penalty of −2, what are the first five values of the first row?", o:["0, 0, 0, 0, 0","0, −1, −2, −3, −4","0, −2, −4, −6, −8","−2, −4, −6, −8, −10"], a:2, w:"Aligning j bases against nothing requires j gaps, so the first row is 0, −2, −4, −6, −8."},
+    {q:"During traceback, a diagonal step means…", o:["A gap in sequence 1","A gap in sequence 2","Two bases are paired (a match or a mismatch)","The alignment ends"], a:2, w:"A diagonal move consumes one base from each sequence, so they are placed in the same column."},
+    {q:"Where does the traceback of a global alignment start?", o:["At the highest value anywhere in the matrix","At the bottom-right cell","At the top-left cell","At the first zero"], a:1, w:"Global alignment covers both sequences completely, so it must end at the last bases of both: the bottom-right cell. Starting at the highest cell is the rule for local alignment (Module 4)."},
+    {q:"A cell stores two arrows. What does this mean?", o:["The algorithm made an error","Two different paths give the same maximum, so there may be more than one optimal alignment","The cell must be recalculated","The sequences are identical"], a:1, w:"Ties create co-optimal alignments with the same score. Programs pick one by a fixed rule."},
+    {q:"Roughly how many cells are needed to align two sequences of 10,000 bases each?", o:["20,000","About one million","About 100 million","About 10 billion"], a:2, w:"10,000 × 10,000 = 100,000,000 cells. The work grows with the product of the lengths: O(n × m)."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true); bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++; big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You are ready for Module 4: Smith-Waterman." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      }); opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ location.hash="s6"; location.reload(); });
+  const sb=el("div","score"); sb.append(big,sub,retry); root.appendChild(sb);
+})();
+</script>
+</body>
+</html>

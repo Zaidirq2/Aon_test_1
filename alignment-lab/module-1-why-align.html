@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 1: Why align?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li class="on" aria-current="page">1 Why align?</li>
+    <li><a href="module-2-scoring-basics.html">2 Scoring basics</a></li>
+    <li><a href="module-3-needleman-wunsch.html">3 Needleman-Wunsch</a></li>
+    <li><a href="module-4-smith-waterman.html">4 Smith-Waterman</a></li>
+    <li><a href="module-5-scoring-matrices.html">5 Scoring matrices</a></li>
+    <li><a href="module-6-blast.html">6 BLAST</a></li>
+    <li><a href="module-7-multiple-alignment.html">7 Multiple alignment</a></li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>Why align sequences?</h1>
+  <p class="lead">DNA changes by substitution, insertion and deletion. Alignment places two sequences side by side so that their shared history becomes visible and every change can be located, counted and named.</p>
+  <div class="hero-aln">
+    <div class="seqbox" id="heroAln"></div>
+    <div class="cap">The first 30 nucleotides of the human β-globin gene (<i>HBB</i>) against the sickle-cell allele. One letter out of 30 differs: c.20A&gt;T, which changes glutamate to valine.</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>Position by position is not enough</h2></div>
+  <p>The simplest way to compare two sequences is to put them on top of each other and check every position. This works for substitutions. It fails as soon as one base is inserted or deleted, because everything downstream shifts by one place.</p>
+  <div class="panel">
+    <div class="tabs" id="naiveTabs" role="group" aria-label="Choose example"></div>
+    <div class="seqbox" id="naiveAln" style="margin-top:12px"></div>
+    <div class="stats" id="naiveStats"></div>
+  </div>
+  <div class="note key">A single deletion turned a near-identical pair into what looks like an unrelated pair. Alignment fixes this by allowing <b>gaps</b>: placeholder positions that represent an insertion in one sequence or a deletion in the other.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>Insert the gaps yourself</h2></div>
+  <p>Tap a base to put a gap <i>before</i> it. Tap a dashed gap to remove it. Watch how matches, identity and the alignment score change. The score uses a simple rule you will study in Module 2: +1 for a match, −1 for a mismatch, −2 for each gap position.</p>
+  <div class="panel">
+    <div class="tabs" id="gapTabs" role="group" aria-label="Choose example"></div>
+    <div id="gapEditor" style="margin-top:12px"></div>
+    <details style="margin-top:14px">
+      <summary>Use your own sequences</summary>
+      <label class="f" for="ownA">Sequence 1 (A, C, G, T only, up to 60)</label>
+      <input type="text" id="ownA" value="GATTACAGGT" maxlength="60" spellcheck="false" autocomplete="off">
+      <label class="f" for="ownB">Sequence 2</label>
+      <input type="text" id="ownB" value="GATCAGGAT" maxlength="60" spellcheck="false" autocomplete="off">
+      <div class="btns"><button class="btn" id="ownLoad">Load sequences</button></div>
+      <div class="msg bad" id="ownMsg" role="status"></div>
+    </details>
+  </div>
+  <div class="note"><b>Two quantities, two meanings.</b> Percent identity counts matching columns over all alignment columns. The score weighs matches against the cost of mismatches and gaps. Different tools divide identity by different lengths, so always check the definition before comparing reports.</div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>What alignment reveals: mutations in <i>HBB</i></h2></div>
+  <p>Apply mutations to the first 60 coding nucleotides of <i>HBB</i>. The tool aligns the mutated sequence to the original and translates both, so you can see what each change does to the protein. Two real disease variants are included.</p>
+  <div class="panel">
+    <div class="btns">
+      <button class="btn solid" data-mut="sickle">Sickle cell: c.20A&gt;T</button>
+      <button class="btn solid" data-mut="cd8">β-thalassaemia: c.25_26delAA</button>
+    </div>
+    <div class="btns">
+      <button class="btn" data-mut="sub">Random substitution</button>
+      <button class="btn" data-mut="ins">Random insertion</button>
+      <button class="btn" data-mut="del">Random deletion</button>
+      <button class="btn" data-mut="reset">Reset</button>
+    </div>
+    <div class="seqbox" id="mutAln"></div>
+    <div class="stats" id="mutStats"></div>
+    <ol class="log" id="mutLog"></ol>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--hl);outline:2px solid var(--G)"></i>changed amino acid</span>
+      <span><i class="sw" style="background:var(--ink)"></i>stop codon (*)</span>
+    </div>
+  </div>
+  <div class="note key"><b>Transition</b>: purine ↔ purine (A↔G) or pyrimidine ↔ pyrimidine (C↔T). <b>Transversion</b>: purine ↔ pyrimidine. Transitions are observed more often in real genomes, which is one reason later modules use different scores for different mismatches. An insertion or deletion that is not a multiple of three shifts the reading frame and usually creates a premature stop codon.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>See similarity at a glance: the dot plot</h2></div>
+  <p>A dot plot places one sequence along each axis and marks every place where a short window of the two sequences matches. Shared regions appear as diagonal lines. Gaps, repeats and inversions each draw a recognisable pattern, before any alignment algorithm is run.</p>
+  <div class="panel">
+    <div class="tabs" id="dpTabs" role="group" aria-label="Choose example"></div>
+    <div class="dpwrap" style="margin-top:14px">
+      <canvas id="dp" width="560" height="560" aria-label="Dot plot"></canvas>
+      <div>
+        <label class="f" for="dpW">Window size: <b id="dpWv">5</b></label>
+        <input type="range" id="dpW" min="1" max="11" value="5">
+        <label class="f" for="dpT">Matches required in window: <b id="dpTv">5</b></label>
+        <input type="range" id="dpT" min="1" max="11" value="5">
+        <label class="f" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="dpRC" checked> Show reverse-complement matches</label>
+        <div class="legend"><span><i class="sw" style="background:var(--C)"></i>same strand</span><span><i class="sw" style="background:var(--T)"></i>reverse complement</span></div>
+        <p class="hint" id="dpExplain"></p>
+        <details>
+          <summary>Use your own sequences</summary>
+          <label class="f" for="dpA">Horizontal (x)</label>
+          <input type="text" id="dpA" maxlength="150" spellcheck="false" autocomplete="off">
+          <label class="f" for="dpB">Vertical (y)</label>
+          <input type="text" id="dpB" maxlength="150" spellcheck="false" autocomplete="off">
+          <div class="btns"><button class="btn" id="dpLoad">Plot</button></div>
+          <div class="msg bad" id="dpMsg" role="status"></div>
+        </details>
+      </div>
+    </div>
+  </div>
+  <div class="note">Try window 1 with 1 match required: the plot fills with random noise, because any base matches a quarter of the other sequence by chance. Larger windows filter out chance matches. This trade-off between sensitivity and noise returns in Module 6, where BLAST uses short "words" in the same way.</div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>Exercises: reach the best score</h2></div>
+  <p>Each puzzle has a target: the highest score possible under the +1 / −1 / −2 rule. Place gaps until you reach it. If you are stuck, reveal the solution and compare it with your attempt.</p>
+  <div class="panel">
+    <div class="tabs" id="pzTabs" role="group" aria-label="Choose puzzle"></div>
+    <div id="pzEditor" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <div class="stephead"><span class="stepnum">6</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 1 of 7 · Bioinformatics, 4th-year Biotechnology · Sequence: <i>HBB</i> coding sequence, nucleotides 1–60 (c.1 = A of ATG).</div></footer>
+
+<script>
+"use strict";
+const HBB = "ATGGTGCACCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAAC";
+const COMP = {A:"T",T:"A",G:"C",C:"G"};
+const PUR = new Set(["A","G"]);
+const MATCH=1, MISMATCH=-1, GAP=-2;
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+
+/* ---------- genetic code ---------- */
+const AA = "FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG";
+const B3 = "TCAG";
+function translate(s){ let p=""; for(let i=0;i+2<s.length;i+=3){ const c=s.substr(i,3); p+=AA[B3.indexOf(c[0])*16+B3.indexOf(c[1])*4+B3.indexOf(c[2])]; } return p; }
+
+/* ---------- Needleman-Wunsch (linear gap) ---------- */
+function nw(a,b){
+  const n=a.length,m=b.length, S=[];
+  for(let i=0;i<=n;i++){ S.push(new Array(m+1).fill(0)); S[i][0]=i*GAP; }
+  for(let j=0;j<=m;j++) S[0][j]=j*GAP;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    S[i][j]=Math.max(S[i-1][j-1]+(a[i-1]===b[j-1]?MATCH:MISMATCH), S[i-1][j]+GAP, S[i][j-1]+GAP);
+  }
+  let i=n,j=m,A="",B="";
+  while(i>0||j>0){
+    if(i>0&&j>0&&S[i][j]===S[i-1][j-1]+(a[i-1]===b[j-1]?MATCH:MISMATCH)){A=a[i-1]+A;B=b[j-1]+B;i--;j--;}
+    else if(i>0&&S[i][j]===S[i-1][j]+GAP){A=a[i-1]+A;B="-"+B;i--;}
+    else {A="-"+A;B=b[j-1]+B;j--;}
+  }
+  return {A,B,score:S[n][m]};
+}
+function stats(A,B){
+  const L=Math.max(A.length,B.length); let mt=0,mm=0,gp=0;
+  for(let i=0;i<L;i++){ const x=A[i]||"-", y=B[i]||"-";
+    if(x==="-"||y==="-") gp++; else if(x===y) mt++; else mm++; }
+  return {L,mt,mm,gp,score:mt*MATCH+mm*MISMATCH+gp*GAP,id:L?mt/L*100:0};
+}
+
+/* ---------- rendering helpers ---------- */
+function baseTile(ch, opts={}){
+  const t = el(opts.button?"button":"span", "t "+(ch==="-"?(opts.pad?"pad":"gap"):ch), ch);
+  if(opts.button){ t.type="button"; }
+  return t;
+}
+function alignRows(A,B,labels=["Seq 1","Seq 2"],opts={}){
+  const frag=document.createDocumentFragment();
+  const L=Math.max(A.length,B.length);
+  if(opts.ruler){
+    const r=el("div","row ruler"); r.appendChild(el("span","lbl",""));
+    for(let i=1;i<=L;i++) r.appendChild(el("span","",i%10===0?String(i):(i%5===0?"·":"")));
+    frag.appendChild(r);
+  }
+  const ra=el("div","row"), mid=el("div","row mid"), rb=el("div","row");
+  ra.appendChild(el("span","lbl",labels[0])); mid.appendChild(el("span","lbl","")); rb.appendChild(el("span","lbl",labels[1]));
+  for(let i=0;i<L;i++){
+    const x=A[i]??"-", y=B[i]??"-";
+    const ta=baseTile(x,{pad:A[i]==null}), tb=baseTile(y,{pad:B[i]==null});
+    let sym=" ",cls="m";
+    if(x!=="-"&&y!=="-"){ if(x===y) sym="|"; else {sym="✕"; cls="m x";} }
+    if(opts.flag && opts.flag.includes(i)){ ta.classList.add("flag"); tb.classList.add("flag"); }
+    ra.appendChild(ta); rb.appendChild(tb); mid.appendChild(el("span",cls,sym));
+  }
+  frag.append(ra,mid,rb); return frag;
+}
+function statsLine(target,s){
+  target.innerHTML="";
+  const items=[["Columns",s.L],["Matches",s.mt],["Mismatches",s.mm],["Gap positions",s.gp],["Identity",s.id.toFixed(1)+"%"],["Score",s.score]];
+  for(const [k,v] of items){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",String(v))); target.appendChild(d); }
+}
+function makeTabs(container, items, onPick){
+  const btns=items.map((it,i)=>{ const b=el("button","btn",it.name); b.type="button";
+    b.addEventListener("click",()=>{ btns.forEach(x=>{x.classList.remove("sel");x.setAttribute("aria-pressed","false");}); b.classList.add("sel"); b.setAttribute("aria-pressed","true"); onPick(it,i); });
+    container.appendChild(b); return b; });
+  btns[0].click();
+}
+
+/* ---------- hero ---------- */
+(function(){
+  const a=HBB.slice(0,30), b=a.slice(0,19)+"T"+a.slice(20);
+  $("#heroAln").appendChild(alignRows(a,b,["Normal","Sickle"],{ruler:true,flag:[19]}));
+  $("#heroAln").querySelectorAll(".t.flag").forEach(t=>t.classList.add("pulse"));
+})();
+
+/* ---------- 1. naive ---------- */
+(function(){
+  const base=HBB.slice(0,30);
+  const items=[
+    {name:"Substitution only", a:base, b:base.slice(0,19)+"T"+base.slice(20), text:"One substitution: 29 of 30 positions still match."},
+    {name:"One deletion", a:base, b:base.slice(0,8)+base.slice(9)+"G", text:"One base deleted at position 9: almost every downstream position now mismatches."},
+    {name:"One insertion", a:base, b:base.slice(0,5)+"A"+base.slice(5,29), text:"One base inserted after position 5: the same collapse happens."}
+  ];
+  makeTabs($("#naiveTabs"),items,it=>{
+    const box=$("#naiveAln"); box.innerHTML="";
+    box.appendChild(alignRows(it.a,it.b,["Original","Changed"],{ruler:true}));
+    const s=stats(it.a,it.b), st=$("#naiveStats"); statsLine(st,s);
+    const p=el("div","",it.text); p.style.flexBasis="100%"; p.style.color="var(--muted)"; st.appendChild(p);
+  });
+})();
+
+/* ---------- gap editor component ---------- */
+function GapEditor(root, cfg){
+  let A=[],B=[],orig={a:"",b:""},target=null,solved=false;
+  const box=el("div","seqbox"), st=el("div","stats"), btns=el("div","btns"), msg=el("div","msg"); msg.setAttribute("role","status");
+  const bReset=el("button","btn","Reset"), bBest=el("button","btn",cfg.puzzle?"Reveal solution":"Show best alignment");
+  bReset.type=bBest.type="button";
+  btns.append(bReset,bBest); root.append(box,st,btns,msg);
+  function normalize(){
+    const L=Math.max(A.length,B.length);
+    for(let i=L-1;i>=0;i--){ if((A[i]??"-")==="-"&&(B[i]??"-")==="-"){ if(i<A.length)A.splice(i,1); if(i<B.length)B.splice(i,1);} }
+    while(A.length&&A[A.length-1]==="-")A.pop(); while(B.length&&B[B.length-1]==="-")B.pop();
+  }
+  function render(){
+    normalize(); box.innerHTML="";
+    const L=Math.max(A.length,B.length);
+    const ra=el("div","row"),mid=el("div","row mid"),rb=el("div","row");
+    ra.appendChild(el("span","lbl","Seq 1")); mid.appendChild(el("span","lbl","")); rb.appendChild(el("span","lbl","Seq 2"));
+    [[A,ra,"1"],[B,rb,"2"]].forEach(([arr,row,nm])=>{
+      for(let i=0;i<L;i++){
+        const ch=arr[i];
+        if(ch==null){ row.appendChild(baseTile("-",{pad:true})); continue; }
+        const t=baseTile(ch,{button:true});
+        t.setAttribute("aria-label", ch==="-" ? `Remove gap at column ${i+1} in sequence ${nm}` : `Insert gap before ${ch} at column ${i+1} in sequence ${nm}`);
+        t.addEventListener("click",()=>{
+          if(ch==="-") arr.splice(i,1);
+          else { if(arr.length>=orig.a.length+orig.b.length) return; arr.splice(i,0,"-"); }
+          render();
+          const f=row.querySelectorAll("button.t")[Math.min(i,row.querySelectorAll("button.t").length-1)]; if(f) f.focus();
+        });
+        row.appendChild(t);
+      }
+    });
+    for(let i=0;i<L;i++){ const x=A[i]??"-",y=B[i]??"-"; let s=" ",c="m"; if(x!=="-"&&y!=="-"){ if(x===y)s="|"; else {s="✕";c="m x";} } mid.appendChild(el("span",c,s)); }
+    box.append(ra,mid,rb);
+    const s=stats(A.join(""),B.join("")); statsLine(st,s);
+    if(target!=null){
+      const t=el("div"); t.append("Target score: "); t.appendChild(el("b","",String(target))); st.appendChild(t);
+      if(s.score>=target){ msg.className="msg ok"; msg.textContent= solved ? "Solution shown. Compare it with your own attempt." : "Target reached. This is an optimal alignment."; }
+      else { msg.className="msg"; msg.textContent=`${target-s.score} point${target-s.score===1?"":"s"} below the best possible score.`; }
+    } else msg.textContent="";
+  }
+  bReset.addEventListener("click",()=>{ A=[...orig.a]; B=[...orig.b]; solved=false; render(); });
+  bBest.addEventListener("click",()=>{ const r=nw(orig.a,orig.b); A=[...r.A]; B=[...r.B]; solved=true; render(); });
+  return { load(a,b){ orig={a,b}; A=[...a]; B=[...b]; solved=false; target=cfg.puzzle?nw(a,b).score:null; render(); } };
+}
+
+/* ---------- 2. gap editor ---------- */
+(function(){
+  const ed=GapEditor($("#gapEditor"),{puzzle:false});
+  const items=[
+    {name:"Toy: one deletion", a:"ACGTTGCAAGT", b:"ACGTGCAAGT"},
+    {name:"Toy: two indels", a:"GATTACAGATT", b:"GATACAGGATT"},
+    {name:"HBB vs codon 8 deletion", a:HBB.slice(0,36), b:(HBB.slice(0,24)+HBB.slice(26)).slice(0,34)}
+  ];
+  makeTabs($("#gapTabs"),items,it=>ed.load(it.a,it.b));
+  $("#ownLoad").addEventListener("click",()=>{
+    const a=$("#ownA").value.toUpperCase().replace(/\s/g,""), b=$("#ownB").value.toUpperCase().replace(/\s/g,"");
+    if(!/^[ACGT]{1,60}$/.test(a)||!/^[ACGT]{1,60}$/.test(b)){ $("#ownMsg").textContent="Use only the letters A, C, G and T, between 1 and 60 per sequence."; return; }
+    $("#ownMsg").textContent=""; document.querySelectorAll("#gapTabs .btn").forEach(x=>x.classList.remove("sel")); ed.load(a,b);
+  });
+})();
+
+/* ---------- 3. mutation lab ---------- */
+(function(){
+  let cur=HBB; const log=[];
+  const rnd=n=>Math.floor(Math.random()*n);
+  function kind(x,y){ return (PUR.has(x)===PUR.has(y))?"transition":"transversion"; }
+  function apply(type){
+    if(type==="reset"){ cur=HBB; log.length=0; }
+    else if(type==="sickle"){ cur=HBB.slice(0,19)+"T"+HBB.slice(20); log.length=0; log.push("c.20A>T (transversion): GAG → GTG, glutamate → valine. This is the sickle-cell variant (HbS)."); }
+    else if(type==="cd8"){ cur=HBB.slice(0,24)+HBB.slice(26); log.length=0; log.push("c.25_26delAA: two bases deleted in codon 8 (traditional numbering). The reading frame shifts, so every downstream amino acid changes; in the full gene the new frame soon reaches a premature stop codon. This is a known β⁰-thalassaemia variant."); }
+    else if(type==="sub"){ const i=rnd(cur.length), x=cur[i]; const opts="ACGT".replace(x,""); const y=opts[rnd(3)]; cur=cur.slice(0,i)+y+cur.slice(i+1); log.push(`Substitution ${x}>${y} at position ${i+1} of the current sequence (${kind(x,y)}).`); }
+    else if(type==="ins"){ const i=rnd(cur.length+1), y="ACGT"[rnd(4)]; cur=cur.slice(0,i)+y+cur.slice(i); log.push(`Insertion of ${y} after position ${i} of the current sequence.`); }
+    else if(type==="del"){ if(cur.length<10) return; const i=rnd(cur.length), x=cur[i]; cur=cur.slice(0,i)+cur.slice(i+1); log.push(`Deletion of ${x} at position ${i+1} of the current sequence.`); }
+    render();
+  }
+  function render(){
+    const r=nw(HBB,cur), box=$("#mutAln"); box.innerHTML="";
+    box.appendChild(alignRows(r.A,r.B,["Original","Mutated"],{ruler:true}));
+    const p1=translate(HBB), p2=translate(cur);
+    const pa=el("div","row"), pb=el("div","row"); pa.style.marginTop="14px";
+    pa.appendChild(el("span","lbl","Protein")); pb.appendChild(el("span","lbl","Mutant"));
+    const L=Math.max(p1.length,p2.length); let firstStop=-1;
+    for(let i=0;i<L;i++){
+      const a=p1[i]??"", b=p2[i]??"";
+      const ta=el("span","t aa",a), tb=el("span","t aa"+(b!==a&&b?" diff":"")+(b==="*"?" stop":""),b);
+      ta.style.width=tb.style.width="24px"; pa.appendChild(ta); pb.appendChild(tb);
+      if(b==="*"&&firstStop<0) firstStop=i;
+    }
+    box.append(pa,pb);
+    const s=stats(r.A,r.B), st=$("#mutStats"); statsLine(st,s);
+    const fs=(cur.length-HBB.length)%3!==0;
+    const d=el("div"); d.style.flexBasis="100%";
+    d.textContent = cur===HBB ? "No mutations yet. Choose a button above." :
+      (fs ? `Reading frame shifted by ${((cur.length-HBB.length)%3+3)%3} base(s).` : "Reading frame preserved.") +
+      (firstStop>=0 ? ` Premature stop codon at amino acid ${firstStop+1}.` : "");
+    st.appendChild(d);
+    const lg=$("#mutLog"); lg.innerHTML=""; log.forEach(t=>lg.appendChild(el("li","",t)));
+  }
+  document.querySelectorAll("[data-mut]").forEach(b=>b.addEventListener("click",()=>apply(b.dataset.mut)));
+  render();
+})();
+
+/* ---------- 4. dot plot ---------- */
+(function(){
+  const cv=$("#dp"), ctx=cv.getContext("2d");
+  let X="",Y="";
+  const H40=HBB.slice(0,40);
+  const revcomp=s=>[...s].reverse().map(c=>COMP[c]).join("");
+  const items=[
+    {name:"Identical", x:H40, y:H40, t:"A single unbroken main diagonal: the two sequences match along their whole length."},
+    {name:"Insertion", x:H40, y:H40.slice(0,18)+"TTTTTT"+H40.slice(18), t:"The diagonal breaks and continues on a parallel line shifted along y. The shift equals the length of the insertion (6 bases)."},
+    {name:"Tandem repeat", x:"GACTTACGTACGTACGTACGTGCATC", y:"GACTTACGTACGTACGTACGTGCATC", t:"Parallel diagonals beside the main one: the repeat unit ACGT matches itself at several offsets."},
+    {name:"Inversion", x:H40, y:H40.slice(0,12)+revcomp(H40.slice(12,28))+H40.slice(28), t:"The middle segment was replaced by its reverse complement. It appears as a red anti-diagonal: the same sequence, read on the opposite strand."},
+    {name:"Unrelated", x:H40, y:"TTAGCCGATCGGATAACGTCAGTTCGAACTGGCATACGTA", t:"Only scattered short matches, no diagonal: no evidence that these sequences share ancestry."}
+  ];
+  function draw(){
+    const w=+$("#dpW").value; let t=+$("#dpT").value;
+    $("#dpT").max=w; if(t>w){t=w;$("#dpT").value=w;}
+    $("#dpWv").textContent=w; $("#dpTv").textContent=t;
+    const css=getComputedStyle(document.documentElement);
+    const n=X.length, m=Y.length, showLab=Math.max(n,m)<=46;
+    const size=560, pad=showLab?26:8, cell=(size-pad-6)/Math.max(n,m);
+    cv.width=size; cv.height=size; ctx.clearRect(0,0,size,size);
+    ctx.strokeStyle=css.getPropertyValue("--rule"); ctx.lineWidth=1;
+    ctx.strokeRect(pad+.5,pad+.5,n*cell,m*cell);
+    if(showLab){
+      ctx.font=`600 ${Math.min(12,cell*.8)}px ${css.getPropertyValue("--mono")}`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      for(let i=0;i<n;i++){ ctx.fillStyle=css.getPropertyValue("--"+X[i]); ctx.fillText(X[i],pad+(i+.5)*cell,pad/2); }
+      for(let j=0;j<m;j++){ ctx.fillStyle=css.getPropertyValue("--"+Y[j]); ctx.fillText(Y[j],pad/2,pad+(j+.5)*cell); }
+    }
+    const half=Math.floor(w/2), r=Math.max(1.4,cell*.36);
+    const dot=(i,j,col)=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(pad+(i+.5)*cell,pad+(j+.5)*cell,r,0,7); ctx.fill(); };
+    const cF=css.getPropertyValue("--C"), cR=css.getPropertyValue("--T");
+    for(let i=0;i+w<=n;i++) for(let j=0;j+w<=m;j++){
+      let k=0; for(let q=0;q<w;q++) if(X[i+q]===Y[j+q]) k++;
+      if(k>=t) dot(i+half,j+half,cF);
+    }
+    if($("#dpRC").checked){
+      for(let i=0;i+w<=n;i++) for(let j=w-1;j<m;j++){
+        let k=0; for(let q=0;q<w;q++) if(X[i+q]===COMP[Y[j-q]]) k++;
+        if(k>=t) dot(i+half,j-half,cR);
+      }
+    }
+  }
+  makeTabs($("#dpTabs"),items,it=>{ X=it.x; Y=it.y; $("#dpA").value=X; $("#dpB").value=Y; $("#dpExplain").textContent=it.t; draw(); });
+  ["#dpW","#dpT","#dpRC"].forEach(s=>$(s).addEventListener("input",draw));
+  $("#dpLoad").addEventListener("click",()=>{
+    const a=$("#dpA").value.toUpperCase().replace(/\s/g,""), b=$("#dpB").value.toUpperCase().replace(/\s/g,"");
+    if(!/^[ACGT]{5,150}$/.test(a)||!/^[ACGT]{5,150}$/.test(b)){ $("#dpMsg").textContent="Use only A, C, G and T, between 5 and 150 bases per sequence."; return; }
+    $("#dpMsg").textContent=""; X=a; Y=b; $("#dpExplain").textContent="Your sequences."; document.querySelectorAll("#dpTabs .btn").forEach(x=>x.classList.remove("sel")); draw();
+  });
+  if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",draw);
+})();
+
+/* ---------- 5. puzzles ---------- */
+(function(){
+  const ed=GapEditor($("#pzEditor"),{puzzle:true});
+  const items=[
+    {name:"Puzzle 1", a:"TCAGGTCA", b:"TCAGTCA"},
+    {name:"Puzzle 2", a:"ACCGTTAGC", b:"ACGTTAAGC"},
+    {name:"Puzzle 3", a:"GTGCACCTGACTCCTG", b:"GTGCACTGACTCCATG"},
+    {name:"Puzzle 4", a:"ATGGTGCACCTGAAGTCT", b:"ATGGTGCACCTGACTCCTGAGGAGTCT"}
+  ];
+  makeTabs($("#pzTabs"),items,it=>ed.load(it.a,it.b));
+})();
+
+/* ---------- 6. quiz ---------- */
+(function(){
+  const Q=[
+    {q:"Which type of mutation can be represented in an alignment without any gap?", o:["Insertion","Deletion","Substitution","Frameshift"], a:2, w:"A substitution replaces one base with another, so both sequences keep the same length. Insertions and deletions change length and need a gap."},
+    {q:"A mutation changes A to G. What kind of substitution is it?", o:["Transversion","Transition","Frameshift","Silent by definition"], a:1, w:"A and G are both purines, so A↔G is a transition. Whether it changes the protein depends on the codon, not on the substitution class."},
+    {q:"In a dot plot, the main diagonal breaks and continues on a parallel line shifted sideways. What does this indicate?", o:["An inversion","An insertion or deletion","Two unrelated sequences","A single substitution"], a:1, w:"An indel shifts one sequence relative to the other, so the matching diagonal jumps to a parallel line. The size of the jump equals the indel length."},
+    {q:"Without gaps, two sequences that differ by a single deletion near their start will show…", o:["About one mismatch","Mismatches mostly downstream of the deletion","No mismatches","Mismatches only at the deletion"], a:1, w:"All positions after the deletion are shifted by one, so they are compared with the wrong partner and mostly mismatch."},
+    {q:"Two genes show 92% identity. Which statement is most accurate?", o:["They are 92% homologous","They are homologous; the high similarity is evidence of shared ancestry","Identity proves they have the same function","Identity does not depend on how the alignment was built"], a:1, w:"Homology is either true or false: sequences share an ancestor or they do not. Percent identity measures similarity, which is the evidence we use to infer homology."},
+    {q:"A 2-base deletion occurs in a coding sequence. What is the most likely effect on the protein?", o:["One amino acid is lost","No effect","The reading frame shifts, usually leading to a premature stop codon","Two amino acids are replaced"], a:2, w:"Two is not a multiple of three, so every codon downstream is read in a new frame. This is what happens in HBB c.25_26delAA."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const scoreBox=el("div","score"), big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true);
+        bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++;
+        big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You are ready for Module 2: scoring." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      });
+      opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ root.innerHTML=""; answered=correct=0; big.textContent="0 / "+Q.length; sub.textContent="Answer each question to see the explanation."; buildAgain(); });
+  scoreBox.append(big,sub,retry); root.appendChild(scoreBox);
+  function buildAgain(){ location.hash="s6"; location.reload(); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 6: BLAST</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+
+.mini .t{width:18px;height:22px;font-size:.78rem;border-radius:3px}
+.mini .row .lbl{width:92px}
+.t.seed{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.t.hsp{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--G)}
+.t.dim{opacity:.3}
+.stepbar{display:flex;flex-wrap:wrap;gap:8px}
+.stepbar .btn{display:inline-flex;gap:8px;align-items:center}
+.stepbar .n{display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;font-size:.8rem;border:1.5px solid currentColor}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-family:var(--mono);font-size:.85rem}
+.chips span{background:var(--soft);padding:3px 8px;border-radius:6px}
+.chips span.hit{background:var(--hl);outline:1.5px solid var(--G)}
+.rep{width:100%;border-collapse:collapse;font-size:.92rem}
+.rep th,.rep td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--rule);white-space:nowrap}
+.rep th{color:var(--muted);font-weight:700;font-size:.82rem}
+.rep td.num{font-family:var(--mono)}
+.rep tr.sig td{background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.rep tr{cursor:pointer}
+.rep tr.on td{outline:2px solid var(--accent);outline-offset:-2px}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.ctrl label{font-size:.88rem;color:var(--muted)}
+input[type=number]{width:120px;font-family:var(--mono);font-size:1rem;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+.ex{padding:14px 0;border-bottom:1px solid var(--rule)}
+.ex:last-child{border-bottom:0}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:14px}
+@media (max-width:720px){.flow{grid-template-columns:1fr}}
+.flow div{background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;font-size:.9rem}
+.flow b{display:block;font-family:var(--display);font-size:1.05rem}
+.nb{font-family:var(--mono);font-size:.88rem;display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.nb span{padding:3px 8px;border-radius:6px;background:color-mix(in srgb,var(--C) 16%,var(--surface))}
+.nb span.q{background:var(--G);color:#1b1400}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li><a href="module-1-why-align.html">1 Why align?</a></li>
+    <li><a href="module-2-scoring-basics.html">2 Scoring basics</a></li>
+    <li><a href="module-3-needleman-wunsch.html">3 Needleman-Wunsch</a></li>
+    <li><a href="module-4-smith-waterman.html">4 Smith-Waterman</a></li>
+    <li><a href="module-5-scoring-matrices.html">5 Scoring matrices</a></li>
+    <li class="on" aria-current="page">6 BLAST</li>
+    <li><a href="module-7-multiple-alignment.html">7 Multiple alignment</a></li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>BLAST: fast enough for a whole database</h1>
+  <p class="lead">Smith-Waterman is exact but must fill one cell for every pair of positions. Against a database of billions of bases, that is too slow for everyday use. BLAST (Altschul et al., 1990) trades a little sensitivity for a huge gain in speed: it only looks closely where a short exact word already matches.</p>
+  <div class="flow" aria-label="BLAST steps">
+    <div><b>1 Words</b>Cut the query into short overlapping words.</div>
+    <div><b>2 Seeds</b>Find database positions where a word matches.</div>
+    <div><b>3 Extend</b>Grow each seed in both directions while the score stays high.</div>
+    <div><b>4 Score</b>Keep the best region of each extension: a high-scoring segment pair (HSP).</div>
+    <div><b>5 Evaluate</b>Ask how often a score this high would appear by chance: the E-value.</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>Run BLAST step by step</h2></div>
+  <p>The query is the first 40 bases of <i>HBB</i>. The database holds five sequences built for this exercise: one contains an exact copy of part of the query, one carries the sickle-cell change, one is a diverged copy with a mismatch every sixth base, and two are random. Scoring: match +1, mismatch −2, as in BLASTn.</p>
+  <div class="panel">
+    <div class="ctrl">
+      <div style="min-width:220px;flex:1"><label for="wSl">Word size w: <b id="wV">7</b></label><input type="range" id="wSl" min="4" max="11" value="7"></div>
+      <div style="min-width:220px;flex:1"><label for="xSl">X-drop (stop extending when the score falls this far below its best): <b id="xV">6</b></label><input type="range" id="xSl" min="2" max="12" value="6"></div>
+    </div>
+    <div class="stepbar" id="stepbar" role="group" aria-label="BLAST step" style="margin-top:12px"></div>
+    <div id="stage" style="margin-top:14px"></div>
+  </div>
+  <div class="note key">Look at the Seeds step: at any word size of 6 or more, including 11 (the classic BLASTn default), the diverged sequence is missing, although it is 83% identical over 30 bases. No seed means no extension, so BLAST never sees it. Lower the word size to 5 and it is found, together with many short random seeds that waste time and end as poor hits. Choosing w is a trade-off between <b>sensitivity</b> and <b>speed</b>.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>Protein BLAST uses neighbourhood words</h2></div>
+  <p>Exact protein words of length 3 would miss too much, because related proteins rarely share many identical triplets. BLASTp therefore also seeds on <b>neighbourhood words</b>: any three-residue word that scores at least a threshold T against a query word using BLOSUM62 (Module 5). Lower T means more neighbours: more sensitive, but slower.</p>
+  <div class="panel">
+    <div class="ctrl">
+      <label for="qw">Query word</label>
+      <select id="qw"><option>PQG</option><option>WCH</option><option>LLV</option><option>GAS</option></select>
+      <div style="min-width:220px;flex:1"><label for="tSl">Threshold T: <b id="tV">13</b></label><input type="range" id="tSl" min="8" max="20" value="13"></div>
+    </div>
+    <p id="nbText" style="margin-top:10px"></p>
+    <div class="nb" id="nbList"></div>
+  </div>
+  <div class="note">Rare, high-scoring residues such as W and C give a word a high score against itself, so it keeps few neighbours. Common residues give a lower self-score, and the word may not even reach T on its own.</div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>The E-value: is this hit real?</h2></div>
+  <p>A raw score depends on the scoring system, so BLAST converts it to a <b>bit score</b> S′, which can be compared across searches. The <b>E-value</b> is the number of hits with at least that score you would expect by chance in a database of this size:</p>
+  <div class="note key">S′ = (λS − ln K) / ln 2  ·  E = m × n × 2<sup>−S′</sup><br>m = query length, n = database length. Here λ ≈ 1.33 and K ≈ 0.46 as illustrative values for +1 / −2 DNA scoring. BLAST estimates λ and K for each scoring system.</div>
+  <div class="panel">
+    <div class="ctrl">
+      <div style="min-width:200px;flex:1"><label for="eS">Raw score S: <b id="eSv">30</b></label><input type="range" id="eS" min="10" max="80" value="30"></div>
+      <div style="min-width:200px;flex:1"><label for="eM">Query length m: <b id="eMv">40</b></label><input type="range" id="eM" min="20" max="2000" step="10" value="40"></div>
+      <div style="min-width:200px;flex:1"><label for="eN">Database length n: <b id="eNv"></b></label><input type="range" id="eN" min="3" max="12" step="0.5" value="9"></div>
+    </div>
+    <div class="stats" id="eOut" style="margin-top:12px"></div>
+    <p id="eText" class="hint"></p>
+  </div>
+  <div class="note">Rules of thumb for nucleotide and protein searches: E below 10⁻⁵ usually indicates a reliable homologue; E near 1 means a hit this good is expected once by chance. The same alignment gets a larger E-value in a larger database, so an E-value only makes sense together with the database it came from.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>Exercises</h2></div>
+  <div class="panel" id="exercises"></div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 6 of 7 · Bioinformatics, 4th-year Biotechnology · Altschul SF, Gish W, Miller W, Myers EW, Lipman DJ. J Mol Biol. 1990;215(3):403–410. The database in section 1 is synthetic; E-values are illustrative.</div></footer>
+
+<script>
+"use strict";
+const HBB = "ATGGTGCACCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAAC";
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+const MATCH=1, MIS=-2, LAMBDA=1.33, KK=0.46;
+const bits = S => (LAMBDA*S - Math.log(KK))/Math.LN2;
+const evalue = (S,m,n) => m*n*Math.pow(2,-bits(S));
+const SUP={"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹","-":"⁻","+":""};
+const fmtE = e => { if(e>=0.01&&e<100) return e.toPrecision(2); const [m,x]=e.toExponential(1).split("e"); return m+"×10"+[...x].map(c=>SUP[c]).join(""); };
+
+/* ---------- toy database (deterministic) ---------- */
+function rng(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const R=rng(20261014), rand=n=>Array.from({length:n},()=>"ACGT"[Math.floor(R()*4)]).join("");
+const QUERY=HBB.slice(0,40);
+const TV={A:"C",C:"A",G:"T",T:"G"};
+const diverged=[...QUERY.slice(4,34)].map((c,i)=>(i%6===5)?TV[c]:c).join("");
+const sickle=QUERY.slice(0,19)+"T"+QUERY.slice(20);
+const DB=[
+  {id:"seq_exact",  s:rand(22)+QUERY.slice(6,36)+rand(18)},
+  {id:"seq_sickle", s:rand(12)+sickle+rand(18)},
+  {id:"seq_diverged", s:rand(16)+diverged+rand(24)},
+  {id:"seq_random1", s:rand(70)},
+  {id:"seq_random2", s:rand(70)}
+];
+const DBLEN=DB.reduce((t,d)=>t+d.s.length,0);
+
+/* ---------- BLAST core ---------- */
+function words(q,w){ const out=[]; for(let i=0;i+w<=q.length;i++) out.push({i,w:q.substr(i,w)}); return out; }
+function seeds(q,w){
+  const idx=new Map(); words(q,w).forEach(({i,w:wd})=>{ if(!idx.has(wd)) idx.set(wd,[]); idx.get(wd).push(i); });
+  const out=[];
+  DB.forEach((d,di)=>{ for(let j=0;j+w<=d.s.length;j++){ const hit=idx.get(d.s.substr(j,w)); if(hit) hit.forEach(i=>out.push({di,qi:i,sj:j})); } });
+  return out;
+}
+function extend(q,s,qi,sj,w,X){
+  const sc=(a,b)=>a===b?MATCH:MIS;
+  let seedScore=0; for(let k=0;k<w;k++) seedScore+=sc(q[qi+k],s[sj+k]);
+  // right
+  let run=seedScore, best=seedScore, bestR=0; const right=[];
+  for(let k=1; qi+w-1+k<q.length && sj+w-1+k<s.length; k++){ run+=sc(q[qi+w-1+k],s[sj+w-1+k]); right.push(run); if(run>best){best=run;bestR=k;} if(run<best-X) break; }
+  // left (starts from the best after right extension)
+  let run2=best, best2=best, bestL=0; const left=[];
+  for(let k=1; qi-k>=0 && sj-k>=0; k++){ run2+=sc(q[qi-k],s[sj-k]); left.push(run2); if(run2>best2){best2=run2;bestL=k;} if(run2<best2-X) break; }
+  return {qs:qi-bestL, qe:qi+w-1+bestR, ss:sj-bestL, se:sj+w-1+bestR, score:best2, seedScore, right, left, bestR, bestL, best};
+}
+function blast(w,X){
+  const sd=seeds(QUERY,w), hsps=[];
+  for(const s of sd){
+    const diag=s.sj-s.qi;
+    if(hsps.some(h=>h.di===s.di&&h.ss-h.qs===diag&&s.qi>=h.qs&&s.qi+w-1<=h.qe)) continue;
+    const e=extend(QUERY,DB[s.di].s,s.qi,s.sj,w,X); e.di=s.di; e.seed=s;
+    if(hsps.some(h=>h.di===e.di&&h.qs===e.qs&&h.ss===e.ss&&h.qe===e.qe)) continue;
+    hsps.push(e);
+  }
+  hsps.sort((a,b)=>b.score-a.score);
+  return {sd,hsps};
+}
+
+/* ---------- rendering helpers ---------- */
+const tile=(ch,extra="")=>el("span","t "+ch+extra,ch);
+function seqRow(label,s,cls){ const r=el("div","row"); r.appendChild(el("span","lbl",label)); [...s].forEach((c,k)=>r.appendChild(tile(c,cls?cls(k):""))); return r; }
+
+/* ---------- section 1 UI ---------- */
+const ST={step:0,sel:0,dbScale:0};
+const STEPS=["Words","Seeds","Extend","Report"];
+(function(){
+  const bar=$("#stepbar");
+  STEPS.forEach((n,i)=>{ const b=el("button","btn"); b.type="button"; b.appendChild(el("span","n",String(i+1))); b.append(n);
+    b.addEventListener("click",()=>{ ST.step=i; render(); }); bar.appendChild(b); });
+  ["#wSl","#xSl"].forEach(s=>$(s).addEventListener("input",()=>{ ST.sel=0; render(); }));
+})();
+function render(){
+  const w=+$("#wSl").value, X=+$("#xSl").value; $("#wV").textContent=w; $("#xV").textContent=X;
+  [...$("#stepbar").children].forEach((b,i)=>{ b.classList.toggle("sel",i===ST.step); b.setAttribute("aria-pressed",String(i===ST.step)); });
+  const stg=$("#stage"); stg.innerHTML="";
+  const {sd,hsps}=blast(w,X);
+  if(ST.step===0){
+    const ws=words(QUERY,w);
+    stg.appendChild(el("p","",`The ${QUERY.length}-base query gives ${QUERY.length} − ${w} + 1 = ${ws.length} overlapping words of length ${w}. BLAST stores them in a lookup table so it can scan the database in one pass.`));
+    const box=el("div","seqbox mini"); box.appendChild(seqRow("Query",QUERY)); stg.appendChild(box);
+    const ch=el("div","chips"); ws.forEach(x=>ch.appendChild(el("span","",x.w))); stg.appendChild(ch);
+  }
+  if(ST.step===1){
+    const per=DB.map((d,di)=>sd.filter(s=>s.di===di));
+    stg.appendChild(el("p","",`Scanning the database for exact matches to any query word found ${sd.length} seed${sd.length===1?"":"s"}. Outlined bases are covered by a seed.`));
+    const box=el("div","seqbox mini");
+    box.appendChild(seqRow("Query",QUERY));
+    DB.forEach((d,di)=>{ const cov=new Set(); per[di].forEach(s=>{ for(let k=0;k<w;k++) cov.add(s.sj+k); });
+      box.appendChild(seqRow(d.id,d.s,k=>cov.has(k)?" seed":" dim")); });
+    stg.appendChild(box);
+    const ch=el("div","chips"); DB.forEach((d,di)=>ch.appendChild(el("span",per[di].length?"hit":"",`${d.id}: ${per[di].length} seed${per[di].length===1?"":"s"}`))); stg.appendChild(ch);
+  }
+  if(ST.step===2){
+    if(!hsps.length){ stg.appendChild(el("p","","No seeds, so nothing to extend. Lower the word size.")); return; }
+    if(ST.sel>=hsps.length) ST.sel=0;
+    stg.appendChild(el("p","",`Each seed is extended without gaps, first to the right and then to the left. The running score rises with matches and falls with mismatches. Extension stops once the score drops more than X = ${X} below the best value seen, and the alignment is trimmed back to that best point. Choose a hit:`));
+    const tabs=el("div","tabs"); hsps.forEach((h,k)=>{ const b=el("button","btn"+(k===ST.sel?" sel":""),`${DB[h.di].id} · ${h.score}`); b.type="button"; b.addEventListener("click",()=>{ST.sel=k; render();}); tabs.appendChild(b); }); stg.appendChild(tabs);
+    const h=hsps[ST.sel], s=DB[h.di].s;
+    const q=QUERY.slice(h.qs,h.qe+1), sub=s.slice(h.ss,h.se+1);
+    const box=el("div","seqbox mini"); box.style.marginTop="12px";
+    const seedQ=h.seed.qi-h.qs;
+    box.appendChild(seqRow(`Query ${h.qs+1}–${h.qe+1}`,q,k=>(k>=seedQ&&k<seedQ+w)?" seed":""));
+    const mid=el("div","row mid"); mid.appendChild(el("span","lbl","")); [...q].forEach((c,k)=>mid.appendChild(el("span","m"+(c===sub[k]?"":" x"),c===sub[k]?"|":"✕"))); box.appendChild(mid);
+    box.appendChild(seqRow(`Subject ${h.ss+1}–${h.se+1}`,sub,k=>(k>=seedQ&&k<seedQ+w)?" seed":""));
+    stg.appendChild(box);
+    const cv=el("canvas"); cv.width=640; cv.height=220; cv.setAttribute("aria-label","Running score during extension"); stg.appendChild(cv); drawExt(cv,h,X);
+    stg.appendChild(el("p","hint",`Seed score ${h.seedScore} (outlined). Right extension tried ${h.right.length} position${h.right.length===1?"":"s"} and kept ${h.bestR}; left extension tried ${h.left.length} and kept ${h.bestL}. Final HSP score: ${h.score}.`));
+  }
+  if(ST.step===3){
+    const sizes=[{n:DBLEN,l:`This toy database (${DBLEN} bases)`},{n:1e9,l:"1 billion bases"},{n:1e12,l:"1 trillion bases"}];
+    const tabs=el("div","tabs"); sizes.forEach((z,k)=>{ const b=el("button","btn"+(k===ST.dbScale?" sel":""),z.l); b.type="button"; b.addEventListener("click",()=>{ST.dbScale=k; render();}); tabs.appendChild(b); });
+    stg.appendChild(el("p","","BLAST keeps the best HSP for each subject, sorted by E-value. Switch the database size to see how the same alignments become less convincing in a larger database."));
+    stg.appendChild(tabs);
+    const n=sizes[ST.dbScale].n, best=new Map(); hsps.forEach(h=>{ if(!best.has(h.di)||best.get(h.di).score<h.score) best.set(h.di,h); });
+    const rows=[...best.values()].sort((a,b)=>b.score-a.score);
+    const wrap=el("div"); wrap.style.overflowX="auto"; wrap.style.marginTop="10px";
+    const t=el("table","rep"); const hr=el("tr"); ["Subject","Query","Subject pos.","Identity","Score","Bits","E-value"].forEach(x=>hr.appendChild(el("th","",x))); t.appendChild(hr);
+    rows.forEach(h=>{ const L=h.qe-h.qs+1; let m=0; for(let k=0;k<L;k++) if(QUERY[h.qs+k]===DB[h.di].s[h.ss+k]) m++;
+      const E=evalue(h.score,QUERY.length,n), tr=el("tr",E<1e-3?"sig":"");
+      [DB[h.di].id,`${h.qs+1}–${h.qe+1}`,`${h.ss+1}–${h.se+1}`,`${m}/${L} (${Math.round(m/L*100)}%)`,h.score,bits(h.score).toFixed(1),fmtE(E)].forEach((v,k)=>tr.appendChild(el("td",k>=3?"num":"",String(v))));
+      tr.addEventListener("click",()=>{ ST.sel=hsps.indexOf(h); ST.step=2; render(); });
+      t.appendChild(tr); });
+    wrap.appendChild(t); stg.appendChild(wrap);
+    const missing=DB.filter((d,di)=>!best.has(di)).map(d=>d.id);
+    stg.appendChild(el("p","hint",`Green rows: E < 0.001. Tap a row to inspect its extension.${missing.length?` Not found at w = ${w}: ${missing.join(", ")}.`:""}`));
+  }
+}
+function drawExt(cv,h,X){
+  const css=getComputedStyle(document.documentElement), c=k=>css.getPropertyValue(k).trim();
+  const ctx=cv.getContext("2d"), W=cv.width, H=cv.height, pl=40, pr=14, pt=16, pb=30;
+  ctx.clearRect(0,0,W,H);
+  /* x positions: left trace reversed, seed point, right trace */
+  const pts=[];
+  for(let k=h.left.length-1;k>=0;k--) pts.push({x:-(k+1),y:h.left[k],side:"L"});
+  pts.push({x:0,y:h.seedScore,side:"S"});
+  h.right.forEach((v,k)=>pts.push({x:k+1,y:v,side:"R"}));
+  /* left trace values are offset from the best right score: shift to show a continuous picture */
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y).concat([h.best-X,h.score-X,0]);
+  const x0=Math.min(...xs), x1=Math.max(...xs,1), y0=Math.min(...ys)-1, y1=Math.max(...ys)+1;
+  const X_=x=>pl+(x-x0)/(x1-x0||1)*(W-pl-pr), Y_=y=>pt+(y1-y)/(y1-y0)*(H-pt-pb);
+  ctx.font="12px "+c("--sans"); ctx.fillStyle=c("--muted"); ctx.strokeStyle=c("--rule"); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pl,Y_(0)); ctx.lineTo(W-pr,Y_(0)); ctx.stroke(); ctx.textAlign="right"; ctx.textBaseline="middle"; ctx.fillText("0",pl-6,Y_(0)); ctx.fillText(String(Math.round(y1)),pl-6,Y_(Math.round(y1)));
+  ctx.textAlign="center"; ctx.fillText("← left extension        seed        right extension →",(W+pl)/2,H-10);
+  const seg=(arr,col)=>{ if(arr.length<2) return; ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); arr.forEach((p,k)=>k?ctx.lineTo(X_(p.x),Y_(p.y)):ctx.moveTo(X_(p.x),Y_(p.y))); ctx.stroke(); };
+  const seedPt=pts.find(p=>p.side==="S");
+  seg([seedPt,...pts.filter(p=>p.side==="R")],c("--C"));
+  const leftStart={x:0,y:h.best};
+  seg([leftStart,...pts.filter(p=>p.side==="L").reverse()],c("--A"));
+  /* x-drop lines */
+  ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+  ctx.strokeStyle=c("--C"); ctx.beginPath(); ctx.moveTo(X_(0),Y_(h.best-X)); ctx.lineTo(W-pr,Y_(h.best-X)); ctx.stroke();
+  ctx.strokeStyle=c("--A"); ctx.beginPath(); ctx.moveTo(pl,Y_(h.score-X)); ctx.lineTo(X_(0),Y_(h.score-X)); ctx.stroke();
+  ctx.setLineDash([]);
+  /* best points */
+  ctx.fillStyle=c("--G"); [[h.bestR,h.best],[-h.bestL,h.score]].forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(X_(x),Y_(y),6,0,7); ctx.fill(); });
+  ctx.fillStyle=c("--ink"); ctx.beginPath(); ctx.arc(X_(0),Y_(h.seedScore),4,0,7); ctx.fill();
+  ctx.textAlign="left"; ctx.fillStyle=c("--muted"); ctx.fillText("dashed: X-drop limit · gold: best point kept",pl+4,pt+2);
+}
+render();
+if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",render);
+
+/* ---------- section 2: neighbourhood words ---------- */
+const ORD="ARNDCQEGHILKMFPSTWYV";
+const B62RAW=` 4 -1 -2 -2  0 -1 -1  0 -2 -1 -1 -1 -1 -2 -1  1  0 -3 -2  0
+-1  5  0 -2 -3  1  0 -2  0 -3 -2  2 -1 -3 -2 -1 -1 -3 -2 -3
+-2  0  6  1 -3  0  0  0  1 -3 -3  0 -2 -3 -2  1  0 -4 -2 -3
+-2 -2  1  6 -3  0  2 -1 -1 -3 -4 -1 -3 -3 -1  0 -1 -4 -3 -3
+ 0 -3 -3 -3  9 -3 -4 -3 -3 -1 -1 -3 -1 -2 -3 -1 -1 -2 -2 -1
+-1  1  0  0 -3  5  2 -2  0 -3 -2  1  0 -3 -1  0 -1 -2 -1 -2
+-1  0  0  2 -4  2  5 -2  0 -3 -3  1 -2 -3 -1  0 -1 -3 -2 -2
+ 0 -2  0 -1 -3 -2 -2  6 -2 -4 -4 -2 -3 -3 -2  0 -2 -2 -3 -3
+-2  0  1 -1 -3  0  0 -2  8 -3 -3 -1 -2 -1 -2 -1 -2 -2  2 -3
+-1 -3 -3 -3 -1 -3 -3 -4 -3  4  2 -3  1  0 -3 -2 -1 -3 -1  3
+-1 -2 -3 -4 -1 -2 -3 -4 -3  2  4 -2  2  0 -3 -2 -1 -2 -1  1
+-1  2  0 -1 -3  1  1 -2 -1 -3 -2  5 -1 -3 -1  0 -1 -3 -2 -2
+-1 -1 -2 -3 -1  0 -2 -3 -2  1  2 -1  5  0 -2 -1 -1 -1 -1  1
+-2 -3 -3 -3 -2 -3 -3 -3 -1  0  0 -3  0  6 -4 -2 -2  1  3 -1
+-1 -2 -2 -1 -3 -1 -1 -2 -2 -3 -3 -1 -2 -4  7 -1 -1 -4 -3 -2
+ 1 -1  1  0 -1  0  0  0 -1 -2 -2  0 -1 -2 -1  4  1 -3 -2 -2
+ 0 -1  0 -1 -1 -1 -1 -2 -2 -1 -1 -1 -1 -2 -1  1  5 -2 -2  0
+-3 -3 -4 -4 -2 -2 -3 -2 -2 -3 -2 -3 -1  1 -4 -3 -2 11  2 -3
+-2 -2 -2 -3 -2 -1 -2 -3  2 -1 -1 -2 -1  3 -3 -2 -2  2  7 -1
+ 0 -3 -3 -3 -1 -2 -2 -3 -3  3  1 -2  1 -1 -2 -2  0 -3 -1  4`;
+const B62={}; B62RAW.split("\n").forEach((line,i)=>line.trim().split(/\s+/).forEach((v,j)=>{ B62[ORD[i]+ORD[j]]=+v; }));
+(function(){
+  function upd(){
+    const q=$("#qw").value, T=+$("#tSl").value; $("#tV").textContent=T;
+    const sc=w=>B62[q[0]+w[0]]+B62[q[1]+w[1]]+B62[q[2]+w[2]];
+    const all=[]; for(const a of ORD) for(const b of ORD) for(const c of ORD){ const w=a+b+c, s=sc(w); if(s>=T) all.push({w,s}); }
+    all.sort((x,y)=>y.s-x.s||x.w.localeCompare(y.w));
+    const self=sc(q);
+    $("#nbText").textContent=`${q} scores ${self} against itself. ${all.length} of the 8,000 possible words score ≥ ${T}${all.length?" and would be used as seeds":""}.${self<T?` The query word itself falls below T, so it would not seed on an exact match.`:""}`;
+    const box=$("#nbList"); box.innerHTML="";
+    all.slice(0,60).forEach(x=>box.appendChild(el("span",x.w===q?"q":"",`${x.w} ${x.s}`)));
+    if(all.length>60) box.appendChild(el("span","",`+ ${all.length-60} more`));
+  }
+  ["#qw","#tSl"].forEach(s=>$(s).addEventListener("input",upd)); upd();
+})();
+
+/* ---------- section 3: E-value explorer ---------- */
+(function(){
+  const sup=n=>{ const s=String(n).replace(".5",""); return [...s].map(c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[c]).join(""); };
+  function upd(){
+    const S=+$("#eS").value, m=+$("#eM").value, ln=+$("#eN").value, n=Math.pow(10,ln);
+    $("#eSv").textContent=S; $("#eMv").textContent=m; $("#eNv").textContent= ln%1===0 ? "10"+sup(ln) : "≈ "+(n/Math.pow(10,Math.floor(ln))).toFixed(1)+" × 10"+sup(Math.floor(ln));
+    const b=bits(S), E=evalue(S,m,n), out=$("#eOut"); out.innerHTML="";
+    for(const [k,v] of [["Bit score",b.toFixed(1)],["E-value",fmtE(E)]]){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",v)); out.appendChild(d); }
+    $("#eText").textContent = E<1e-5 ? "Very unlikely to occur by chance: strong evidence of a real relationship." : E<0.01 ? "Unlikely by chance, but check the alignment before drawing conclusions." : E<1 ? "Borderline: a hit like this appears by chance in a fraction of searches." : `You would expect about ${E>=100?E.toExponential(0):Math.round(E)} such hit${E>=1.5?"s":""} by chance alone: not evidence of homology.`;
+  }
+  ["#eS","#eM","#eN"].forEach(s=>$(s).addEventListener("input",upd)); upd();
+})();
+
+/* ---------- section 4: exercises ---------- */
+(function(){
+  const EX=[
+    {q:"A query of 30 bases is searched with word size 11. How many query words are there?", a:20, tol:0, h:"Number of words = L − w + 1 = 30 − 11 + 1 = 20."},
+    {q:"A hit has E = 0.002 in a database of 1 billion bases. The database grows to 4 billion bases and the alignment is unchanged. What is the new E-value?", a:0.008, tol:0.0001, h:"E is proportional to database length n: four times larger n gives E = 4 × 0.002 = 0.008."},
+    {q:"A hit has a bit score of 30 with a query of 1,000 bases against a database of 1,000,000 bases. What is E? (Give a decimal; 2³⁰ ≈ 1.07 × 10⁹.)", a:1e9/Math.pow(2,30), tol:0.02, h:"E = m × n × 2^(−S′) = 10³ × 10⁶ / 2³⁰ ≈ 10⁹ / 1.07 × 10⁹ ≈ 0.93. Not significant."},
+    {q:"With raw score unchanged, how many bits does the bit score change when the database doubles in size? (Enter 0 if it does not change.)", a:0, tol:0, h:"The bit score depends only on the raw score and the scoring system (λ and K), not on database size. Only the E-value changes."}
+  ];
+  const root=$("#exercises");
+  EX.forEach((ex,i)=>{
+    const d=el("div","ex"); d.appendChild(el("h3","",`Exercise ${i+1}`)); d.appendChild(el("p","",ex.q));
+    const row=el("div","btns"), inp=el("input"); inp.type="number"; inp.step="any"; inp.setAttribute("aria-label",`Answer to exercise ${i+1}`);
+    const chk=el("button","btn solid","Check"), show=el("button","btn","Show working"); chk.type=show.type="button";
+    const msg=el("div","msg"); msg.setAttribute("role","status");
+    chk.addEventListener("click",()=>{ if(inp.value===""){ msg.className="msg bad"; msg.textContent="Enter a number first."; return; }
+      const v=+inp.value, ok= ex.tol===0 ? v===ex.a : Math.abs(v-ex.a)<=Math.max(ex.tol,Math.abs(ex.a)*0.05);
+      msg.className="msg "+(ok?"ok":"bad"); msg.textContent= ok?"Correct.":"Not yet. Try again or show the working."; });
+    show.addEventListener("click",()=>{ msg.className="msg"; msg.textContent=ex.h; });
+    row.append(inp,chk,show); d.append(row,msg); root.appendChild(d);
+  });
+})();
+
+/* ---------- section 5: quiz ---------- */
+(function(){
+  const Q=[
+    {q:"Why is BLAST faster than Smith-Waterman on a large database?", o:["It uses a better scoring matrix","It only extends regions around short exact (or high-scoring) word matches instead of filling the full matrix","It ignores mismatches","It aligns only the first 100 bases"], a:1, w:"BLAST examines the database only near seeds. Most of the database is never aligned in detail."},
+    {q:"What is the main risk of using a large word size?", o:["Too many random seeds","Similar sequences without a long exact match may be missed entirely","E-values become negative","Alignments contain more gaps"], a:1, w:"No seed means no extension. Diverged homologues can lack any exact run of w bases."},
+    {q:"What is an HSP?", o:["A high-scoring segment pair: the best-scoring region found by extending a seed","A type of scoring matrix","A database of sequences","A hidden state probability"], a:0, w:"An HSP is a local alignment region produced by seed extension and kept because it scores well."},
+    {q:"A hit has E = 3. What does this mean?", o:["The two sequences are 3% identical","About three hits this good are expected by chance in a database of this size","The alignment has three gaps","The hit is highly significant"], a:1, w:"An E-value counts expected chance hits. E = 3 means this score is unremarkable."},
+    {q:"The same alignment is found in a database ten times larger. How does its E-value change?", o:["It stays the same","It becomes about ten times larger","It becomes ten times smaller","It becomes zero"], a:1, w:"E = m × n × 2^(−S′) grows linearly with database length n."},
+    {q:"Why does BLASTp use neighbourhood words with a threshold T?", o:["Proteins have only four letters","Related proteins often share similar rather than identical short words, so similar words must also seed","To reduce the size of the query","Because BLOSUM62 has no positive scores"], a:1, w:"Neighbourhood words let BLASTp seed on conservative substitutions, increasing sensitivity for distant proteins."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true); bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++; big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You are ready for Module 7: multiple alignment." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      }); opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ location.hash="s5"; location.reload(); });
+  const sb=el("div","score"); sb.append(big,sub,retry); root.appendChild(sb);
+})();
+</script>
+</body>
+</html>

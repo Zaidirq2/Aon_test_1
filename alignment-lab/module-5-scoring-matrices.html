@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 5: Scoring matrices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+
+.hm{border-collapse:separate;border-spacing:2px;font-family:var(--mono)}
+.hm th{font-size:.8rem;font-weight:600;min-width:24px;height:22px;padding:0;color:var(--ink)}
+.hm th.grp{color:var(--muted);font-family:var(--sans);font-weight:400;font-size:.7rem}
+.hm td{padding:0}
+.hm button{width:26px;height:26px;border:0;border-radius:4px;font-family:var(--mono);font-size:.72rem;font-weight:600;padding:0;color:var(--ink)}
+.hm button.on{outline:3px solid var(--ink);outline-offset:0}
+.hm button.lite{opacity:.35}
+.aa{font-family:var(--mono);font-weight:600}
+.blk{display:inline-grid;gap:3px}
+.blk .r{display:flex;gap:3px}
+.blk button{width:30px;height:30px;border:0;border-radius:5px;font-family:var(--mono);font-weight:600;font-size:.95rem;color:#fff}
+.blk .lbl{font-size:.75rem;color:var(--muted);width:44px;display:flex;align-items:center}
+.res-I{background:var(--C)} .res-L{background:var(--A)} .res-V{background:#7B5BC9} .res-D{background:var(--T)}
+.mini4{border-collapse:separate;border-spacing:3px;font-family:var(--mono)}
+.mini4 td,.mini4 th{width:44px;height:36px;text-align:center;border-radius:6px;font-weight:600}
+.mini4 td{cursor:pointer}
+.mini4 td.on{outline:3px solid var(--ink)}
+.prow{display:flex;gap:2px;min-width:max-content;align-items:center}
+.prow .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;text-align:right;padding-right:8px}
+.p{font-family:var(--mono);font-weight:600;width:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;background:var(--soft);flex:none;font-size:.92rem}
+.p.diff{background:var(--hl);outline:2px solid var(--G)}
+.p.gap{background:transparent;border:1.5px dashed var(--gapc);color:var(--gapc)}
+.p.sc{background:transparent;font-size:.72rem;font-weight:500;color:var(--muted);height:18px}
+.p.sc.neg{color:var(--bad);font-weight:700}
+.p.sc.pos{color:var(--ok);font-weight:700}
+.info{background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;margin-top:12px}
+.rec{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+@media (max-width:640px){.rec{grid-template-columns:1fr}}
+.rec .move{background:var(--bg);border:1.5px solid var(--rule);border-radius:10px;padding:12px}
+.rec .move.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.moves{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:640px){.moves{grid-template-columns:1fr}}
+.move{background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:12px}
+input[type=number]{width:110px;font-family:var(--mono);font-size:1rem;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+.ex{padding:14px 0;border-bottom:1px solid var(--rule)}
+.ex:last-child{border-bottom:0}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li><a href="module-1-why-align.html">1 Why align?</a></li>
+    <li><a href="module-2-scoring-basics.html">2 Scoring basics</a></li>
+    <li><a href="module-3-needleman-wunsch.html">3 Needleman-Wunsch</a></li>
+    <li><a href="module-4-smith-waterman.html">4 Smith-Waterman</a></li>
+    <li class="on" aria-current="page">5 Scoring matrices</li>
+    <li><a href="module-6-blast.html">6 BLAST</a></li>
+    <li><a href="module-7-multiple-alignment.html">7 Multiple alignment</a></li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>Not all mismatches are equal</h1>
+  <p class="lead">Replacing isoleucine with leucine barely changes a protein. Replacing glycine with tryptophan can wreck it. A substitution matrix gives every pair of residues its own score, learned from real alignments of related proteins, so that likely substitutions are rewarded and unlikely ones are penalised.</p>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>From one mismatch score to a full matrix</h2></div>
+  <p>For DNA, a few numbers are often enough: one score for matches and one or two for mismatches. NCBI BLAST, for example, uses +1 / −2 by default for highly similar nucleotide searches and +2 / −3 for more distant ones. Proteins need more. Their 20 amino acids differ in size, charge and polarity, and evolution swaps similar residues far more often than dissimilar ones.</p>
+  <div class="moves">
+    <div class="move"><b>DNA: 4 × 4</b><p class="hint">Usually a match score and a mismatch score, sometimes with transitions penalised less than transversions (Module 2).</p></div>
+    <div class="move"><b>Protein: 20 × 20</b><p class="hint">210 different scores (the matrix is symmetric). Each one says how much more or less often that pair is seen in real alignments than expected by chance.</p></div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>How a matrix is built: log-odds in miniature</h2></div>
+  <p>BLOSUM matrices are built from <b>blocks</b>: short, gap-free regions of aligned related proteins. Every pair of residues in the same column is counted. Each count is compared with what you would expect if residues were paired at random, and the ratio becomes a score:</p>
+  <div class="note key">score(a, b) = round( 2 × log₂ ( q<sub>ab</sub> / e<sub>ab</sub> ) )<br>q<sub>ab</sub> = observed frequency of the pair · e<sub>ab</sub> = expected frequency from the background frequencies of a and b. Positive: seen more often than chance. Zero: as often as chance. Negative: less often than chance. The factor 2 puts BLOSUM scores in half-bit units.</div>
+  <p>Here is a toy block of six aligned sequences using only four amino acids: isoleucine (I), leucine (L), valine (V) and aspartate (D). Tap any residue to change it and watch the matrix update. Tap a matrix cell to see its calculation.</p>
+  <div class="panel">
+    <div class="grid2">
+      <div><h3 style="margin-bottom:8px">Aligned block</h3><div class="blk" id="block"></div><p class="hint">Tap a residue to cycle I → L → V → D.</p></div>
+      <div><h3 style="margin-bottom:8px">Resulting matrix</h3><div style="overflow-x:auto"><table class="mini4" id="toyMx"></table></div></div>
+    </div>
+    <div class="info" id="toyInfo" role="status"></div>
+    <div class="btns"><button class="btn" id="toyReset" type="button">Reset block</button></div>
+  </div>
+  <div class="note">Real BLOSUM62 was built from about 2,000 blocks in the BLOCKS database, after clustering sequences that were more than 62% identical so that near-duplicates would not dominate the counts. That clustering threshold gives the matrix its number.</div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>Explore BLOSUM62</h2></div>
+  <p>Amino acids are ordered by chemical group, so blocks of positive scores appear along the diagonal: residues inside a group replace each other often. Tap any cell to read its score and what it means.</p>
+  <div class="panel">
+    <div style="overflow-x:auto"><table class="hm" id="heat"></table></div>
+    <div class="legend"><span><i class="sw" style="background:var(--C)"></i>positive: seen more often than chance</span><span><i class="sw" style="background:var(--soft)"></i>zero</span><span><i class="sw" style="background:var(--T)"></i>negative: seen less often than chance</span></div>
+    <div class="info" id="heatInfo" role="status">Tap a cell.</div>
+  </div>
+  <div class="note key">Notice the diagonal: identical pairs are not all scored alike. W–W scores +11 and C–C +9, but A–A only +4. Rare residues that are conserved carry more information than common ones, so matching them is stronger evidence of a real relationship.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>Score a protein alignment</h2></div>
+  <p>Compare residues 1–30 of human β-globin (<i>HBB</i>, starting with the initiator Met) with three variants. Each column shows its BLOSUM62 score. Below it, the same alignment is scored with a simple identity rule (+1 match, −1 mismatch) for comparison.</p>
+  <div class="panel">
+    <div class="tabs" id="protTabs" role="group" aria-label="Choose comparison"></div>
+    <div class="seqbox" id="protAln" style="margin-top:12px"></div>
+    <div class="stats" id="protStats"></div>
+    <p id="protText" style="margin-top:8px"></p>
+    <details style="margin-top:10px">
+      <summary>Score your own alignment</summary>
+      <label class="f" for="pA">Protein 1 (one-letter codes; use - for gaps)</label>
+      <input type="text" id="pA" value="HEAGAWGHEE" maxlength="60" spellcheck="false" autocomplete="off">
+      <label class="f" for="pB">Protein 2 (same length)</label>
+      <input type="text" id="pB" value="-PAW-HEAE-" maxlength="60" spellcheck="false" autocomplete="off">
+      <div class="btns"><button class="btn" id="pLoad" type="button">Score</button></div>
+      <div class="msg bad" id="pMsg" role="status"></div>
+      <p class="hint">Gaps use the BLAST default for BLOSUM62: existence 11 plus 1 per gap position, so a gap of length L costs −(11 + L).</p>
+    </details>
+  </div>
+  <div class="note">A substitution score measures how often evolution has accepted that change, not how harmful it is in a patient. Glu→Val (sickle cell, −2) and Glu→Lys (HbC, +1) score differently, but clinical severity depends on where the residue sits in the protein and what the change does there.</div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>PAM or BLOSUM, and which number?</h2></div>
+  <div class="moves">
+    <div class="move"><b>PAM (Dayhoff, 1978)</b><p class="hint">Built from closely related proteins and extrapolated mathematically. The number is evolutionary distance: PAM1 means 1 accepted mutation per 100 residues. <b>Higher number = more distant sequences.</b></p></div>
+    <div class="move"><b>BLOSUM (Henikoff &amp; Henikoff, 1992)</b><p class="hint">Built directly from conserved blocks of distant proteins. The number is the clustering identity threshold. <b>Lower number = more distant sequences.</b></p></div>
+  </div>
+  <p style="margin-top:16px">Move the slider to the identity you expect between your sequences to see which matrix suits them.</p>
+  <div class="panel">
+    <label class="f" for="idSl">Expected identity: <b id="idV">50</b>%</label>
+    <input type="range" id="idSl" min="20" max="95" value="50">
+    <div class="rec" id="rec"></div>
+  </div>
+  <div class="note key">BLOSUM62 is the default of BLASTp and a good first choice when you do not know how related your sequences are. NCBI suggests PAM30 or PAM70 for very short queries, which carry too little information for BLOSUM62 to detect them.</div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <div class="stephead"><span class="stepnum">6</span><h2>Exercises: score with BLOSUM62</h2></div>
+  <p>Find each column score in the BLOSUM62 matrix of section 3 and add them up. No gaps in these alignments.</p>
+  <div class="panel" id="exercises"></div>
+</section>
+
+<!-- 7 -->
+<section class="step" id="s7">
+  <div class="stephead"><span class="stepnum">7</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 5 of 7 · Bioinformatics, 4th-year Biotechnology · Henikoff S, Henikoff JG. PNAS. 1992;89(22):10915–10919. Dayhoff MO, Schwartz RM, Orcutt BC. Atlas of Protein Sequence and Structure. 1978;5(Suppl 3):345–352.</div></footer>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+const fmt = v => (v>0?"+":"")+v;
+
+/* ---------- BLOSUM62 ---------- */
+const ORD="ARNDCQEGHILKMFPSTWYV";
+const B62RAW=`
+ 4 -1 -2 -2  0 -1 -1  0 -2 -1 -1 -1 -1 -2 -1  1  0 -3 -2  0
+-1  5  0 -2 -3  1  0 -2  0 -3 -2  2 -1 -3 -2 -1 -1 -3 -2 -3
+-2  0  6  1 -3  0  0  0  1 -3 -3  0 -2 -3 -2  1  0 -4 -2 -3
+-2 -2  1  6 -3  0  2 -1 -1 -3 -4 -1 -3 -3 -1  0 -1 -4 -3 -3
+ 0 -3 -3 -3  9 -3 -4 -3 -3 -1 -1 -3 -1 -2 -3 -1 -1 -2 -2 -1
+-1  1  0  0 -3  5  2 -2  0 -3 -2  1  0 -3 -1  0 -1 -2 -1 -2
+-1  0  0  2 -4  2  5 -2  0 -3 -3  1 -2 -3 -1  0 -1 -3 -2 -2
+ 0 -2  0 -1 -3 -2 -2  6 -2 -4 -4 -2 -3 -3 -2  0 -2 -2 -3 -3
+-2  0  1 -1 -3  0  0 -2  8 -3 -3 -1 -2 -1 -2 -1 -2 -2  2 -3
+-1 -3 -3 -3 -1 -3 -3 -4 -3  4  2 -3  1  0 -3 -2 -1 -3 -1  3
+-1 -2 -3 -4 -1 -2 -3 -4 -3  2  4 -2  2  0 -3 -2 -1 -2 -1  1
+-1  2  0 -1 -3  1  1 -2 -1 -3 -2  5 -1 -3 -1  0 -1 -3 -2 -2
+-1 -1 -2 -3 -1  0 -2 -3 -2  1  2 -1  5  0 -2 -1 -1 -1 -1  1
+-2 -3 -3 -3 -2 -3 -3 -3 -1  0  0 -3  0  6 -4 -2 -2  1  3 -1
+-1 -2 -2 -1 -3 -1 -1 -2 -2 -3 -3 -1 -2 -4  7 -1 -1 -4 -3 -2
+ 1 -1  1  0 -1  0  0  0 -1 -2 -2  0 -1 -2 -1  4  1 -3 -2 -2
+ 0 -1  0 -1 -1 -1 -1 -2 -2 -1 -1 -1 -1 -2 -1  1  5 -2 -2  0
+-3 -3 -4 -4 -2 -2 -3 -2 -2 -3 -2 -3 -1  1 -4 -3 -2 11  2 -3
+-2 -2 -2 -3 -2 -1 -2 -3  2 -1 -1 -2 -1  3 -3 -2 -2  2  7 -1
+ 0 -3 -3 -3 -1 -2 -2 -3 -3  3  1 -2  1 -1 -2 -2  0 -3 -1  4`;
+const B62={}; B62RAW.trim().split("\n").forEach((line,i)=>{ line.trim().split(/\s+/).forEach((v,j)=>{ B62[ORD[i]+ORD[j]]=+v; }); });
+const b62=(x,y)=>B62[x+y];
+const NAMES={A:"alanine",R:"arginine",N:"asparagine",D:"aspartate",C:"cysteine",Q:"glutamine",E:"glutamate",G:"glycine",H:"histidine",I:"isoleucine",L:"leucine",K:"lysine",M:"methionine",F:"phenylalanine",P:"proline",S:"serine",T:"threonine",W:"tryptophan",Y:"tyrosine",V:"valine"};
+const GROUPS=[["C","Sulfur"],["STAGP","Small"],["DENQ","Acidic, amide"],["HRK","Basic"],["MILV","Hydrophobic"],["FYW","Aromatic"]];
+const GORD=GROUPS.map(g=>g[0]).join("");
+const groupOf=a=>GROUPS.find(g=>g[0].includes(a))[1];
+
+/* colour for a score */
+function scoreColor(v){
+  const css=getComputedStyle(document.documentElement);
+  if(v===0) return css.getPropertyValue("--soft");
+  const base=css.getPropertyValue(v>0?"--C":"--T").trim(), pct=Math.min(100,18+Math.abs(v)*(v>0?9:16));
+  return `color-mix(in srgb, ${base} ${pct}%, var(--surface))`;
+}
+const ratioText=v=>{ const r=Math.pow(2,v/2); return v===0?"about as often as expected by chance":(v>0?`about ${r.toFixed(r<10?1:0)} times more often than expected by chance`:`about ${(1/r).toFixed(1/r<10?1:0)} times less often than expected by chance`); };
+
+/* ---------- 2. toy block ---------- */
+(function(){
+  const AL="ILVD", START=["IILDVLVD","IVLDILVD","VILDILID","IILDLLVD","LIIDIVVI","IVLLIIVV"];
+  let rows=START.map(r=>[...r]), sel=null;
+  const NM={I:"isoleucine",L:"leucine",V:"valine",D:"aspartate"};
+  function compute(){
+    const C={}; let tot=0;
+    for(let c=0;c<rows[0].length;c++) for(let i=0;i<rows.length;i++) for(let j=i+1;j<rows.length;j++){ const k=[rows[i][c],rows[j][c]].sort().join(""); C[k]=(C[k]||0)+1; tot++; }
+    const key=(a,b)=>[a,b].sort().join(""), q=(a,b)=>(C[key(a,b)]||0)/tot, p={};
+    for(const a of AL){ p[a]=0; for(const b of AL) p[a]+= a===b?q(a,b):q(a,b)/2; }
+    const e=(a,b)=>a===b?p[a]*p[a]:2*p[a]*p[b];
+    const s=(a,b)=>{ const qq=q(a,b), ee=e(a,b); if(qq===0||ee===0) return null; return Math.round(2*Math.log2(qq/ee)); };
+    return {C,tot,q,p,e,s,key};
+  }
+  function render(){
+    const R=compute(), blk=$("#block"); blk.innerHTML="";
+    rows.forEach((r,i)=>{ const d=el("div","r"); d.appendChild(el("span","lbl","Seq "+(i+1)));
+      r.forEach((ch,c)=>{ const b=el("button","res-"+ch,ch); b.type="button"; b.setAttribute("aria-label",`Sequence ${i+1}, column ${c+1}: ${NM[ch]}. Tap to change.`);
+        b.addEventListener("click",()=>{ rows[i][c]=AL[(AL.indexOf(ch)+1)%4]; render(); b.focus(); }); d.appendChild(b); });
+      blk.appendChild(d); });
+    const t=$("#toyMx"); t.innerHTML="";
+    const hr=el("tr"); hr.appendChild(el("th")); for(const b of AL) hr.appendChild(el("th","",b)); t.appendChild(hr);
+    for(const a of AL){ const tr=el("tr"); tr.appendChild(el("th","",a));
+      for(const b of AL){ const v=R.s(a,b), td=el("td","",v==null?"–∞":fmt(v)); td.style.background=v==null?"var(--soft)":scoreColor(v); td.tabIndex=0; td.setAttribute("role","button");
+        if(sel&&sel[0]===a&&sel[1]===b) td.classList.add("on");
+        const go=()=>{ sel=[a,b]; render(); };
+        td.addEventListener("click",go); td.addEventListener("keydown",ev=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); go(); } });
+        tr.appendChild(td); }
+      t.appendChild(tr); }
+    const info=$("#toyInfo"); info.innerHTML="";
+    if(!sel){ info.textContent=`The block contains ${R.tot} residue pairs (15 pairs per column × 8 columns). Tap a matrix cell to see how its score is calculated.`; return; }
+    const [a,b]=sel, n=R.C[R.key(a,b)]||0, q=R.q(a,b), e=R.e(a,b), v=R.s(a,b);
+    info.appendChild(el("div","",`${a}–${b}: counted ${n} times out of ${R.tot} pairs → q = ${q.toFixed(3)}`));
+    info.appendChild(el("div","",`Background: p(${a}) = ${R.p[a].toFixed(3)}${a!==b?`, p(${b}) = ${R.p[b].toFixed(3)}`:""} → e = ${a===b?`p(${a})²`:`2 × p(${a}) × p(${b})`} = ${e.toFixed(3)}`));
+    info.appendChild(el("div","",v==null?"Never observed: the score would be minus infinity. Real matrices use far more data, so every pair is observed.":`Score = round(2 × log₂(${q.toFixed(3)} / ${e.toFixed(3)})) = round(${(2*Math.log2(q/e)).toFixed(2)}) = ${fmt(v)}`));
+  }
+  $("#toyReset").addEventListener("click",()=>{ rows=START.map(r=>[...r]); sel=null; render(); });
+  render();
+})();
+
+/* ---------- 3. heatmap ---------- */
+let heatSel=null;
+function renderHeat(){
+  const t=$("#heat"); t.innerHTML="";
+  const g=el("tr"); g.appendChild(el("th")); g.appendChild(el("th"));
+  GROUPS.forEach(([aa,nm])=>{ const th=el("th","grp",nm); th.colSpan=aa.length; g.appendChild(th); }); t.appendChild(g);
+  const hr=el("tr"); hr.appendChild(el("th")); hr.appendChild(el("th")); for(const b of GORD) hr.appendChild(el("th","",b)); t.appendChild(hr);
+  for(const a of GORD){ const tr=el("tr"); tr.appendChild(el("th","grp",GROUPS.find(x=>x[0][0]===a)?groupOf(a):"")); tr.appendChild(el("th","",a));
+    for(const b of GORD){ const v=b62(a,b), td=el("td"), bt=el("button","",String(v)); bt.type="button"; bt.style.background=scoreColor(v);
+      bt.setAttribute("aria-label",`${NAMES[a]} and ${NAMES[b]}: ${v}`);
+      if(heatSel){ if(heatSel[0]===a&&heatSel[1]===b) bt.classList.add("on"); else if(heatSel[0]!==a&&heatSel[1]!==b) bt.classList.add("lite"); }
+      bt.addEventListener("click",()=>{ heatSel=[a,b]; renderHeat(); document.querySelector(`#heat button[aria-label^="${NAMES[a]} and ${NAMES[b]}:"]`)?.focus(); });
+      td.appendChild(bt); tr.appendChild(td); }
+    t.appendChild(tr); }
+  const info=$("#heatInfo");
+  if(heatSel){ const [a,b]=heatSel, v=b62(a,b);
+    info.textContent = a===b ? `${NAMES[a]} (${a}) aligned with itself scores ${fmt(v)}: conserved ${a} is seen ${ratioText(v)}.`
+      : `${NAMES[a]} (${a}) ↔ ${NAMES[b]} (${b}) scores ${fmt(v)}: this pair appears in related proteins ${ratioText(v)}. ${groupOf(a)===groupOf(b)?`Both belong to the ${groupOf(a).toLowerCase()} group.`:`They belong to different groups (${groupOf(a).toLowerCase()} and ${groupOf(b).toLowerCase()}).`}`; }
+}
+renderHeat();
+if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{ renderHeat(); });
+
+/* ---------- 4. protein alignment scoring ---------- */
+const HBBP="MVHLTPEEKSAVTALWGKVNVDEVGGEALG";
+function scoreProt(A,B){
+  let blo=0, id=0, mt=0, ms=0, gp=0; const cols=[];
+  for(let i=0;i<A.length;i++){
+    const x=A[i], y=B[i];
+    if(x==="-"||y==="-"){ const row=x==="-"?A:B; const open=i===0||row[i-1]!=="-"; const v=open?-12:-1; blo+=v; id+=-2; gp++; cols.push(v); continue; }
+    const v=b62(x,y); blo+=v; cols.push(v); if(x===y){ mt++; id+=1; } else { ms++; id+=-1; }
+  }
+  return {blo,id,mt,ms,gp,cols};
+}
+function protRows(A,B,cols,names){
+  const box=$("#protAln"); box.innerHTML="";
+  const r1=el("div","prow"), r2=el("div","prow"), r3=el("div","prow"), r0=el("div","prow");
+  r0.appendChild(el("span","lbl","")); r1.appendChild(el("span","lbl",names[0])); r2.appendChild(el("span","lbl",names[1])); r3.appendChild(el("span","lbl","BLOSUM62"));
+  for(let i=0;i<A.length;i++){
+    r0.appendChild(el("span","p sc",(i%5===0)?String(i):""));
+    const diff=A[i]!==B[i];
+    r1.appendChild(el("span","p"+(A[i]==="-"?" gap":(diff?" diff":"")),A[i]));
+    r2.appendChild(el("span","p"+(B[i]==="-"?" gap":(diff?" diff":"")),B[i]));
+    r3.appendChild(el("span","p sc"+(cols[i]<0?" neg":(diff&&cols[i]>=0?" pos":"")),fmt(cols[i])));
+  }
+  box.append(r0,r1,r2,r3);
+}
+function showProt(A,B,names,text){
+  const r=scoreProt(A,B); protRows(A,B,r.cols,names);
+  const st=$("#protStats"); st.innerHTML="";
+  for(const [k,v] of [["Identical",r.mt],["Substituted",r.ms],["Gap positions",r.gp],["BLOSUM62 score",fmt(r.blo)],["Identity-rule score",fmt(r.id)]]){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",String(v))); st.appendChild(d); }
+  $("#protText").textContent=text;
+}
+(function(){
+  const sub=(s,i,c)=>s.slice(0,i)+c+s.slice(i+1);
+  const items=[
+    {name:"Sickle cell (HbS): Glu6Val", B:sub(HBBP,6,"V"), n:"HbS", t:"One substitution, E→V, scored −2: glutamate (acidic, charged) and valine (hydrophobic) rarely replace each other in related proteins."},
+    {name:"HbC: Glu6Lys", B:sub(HBBP,6,"K"), n:"HbC", t:"Same position, different change. E→K scores +1: both are charged, polar residues found on protein surfaces, and they replace each other fairly often."},
+    {name:"HbE: Glu26Lys", B:sub(HBBP,26,"K"), n:"HbE", t:"E→K again (+1), at residue 26. Position numbers follow the mature protein, which lacks the initiator Met, so residue 26 is column 26 here."},
+    {name:"Paralogue: δ-globin (HBD)", B:"MVHLTPEEKTAVNALWGKVNVDAVGGEALG", n:"HBD", t:"β- and δ-globin are paralogues that arose by gene duplication. In residues 1–30 they differ at three positions: S9T (+1), T12N (0) and E22A (−1). The matrix rewards the conservative S→T change."}
+  ];
+  const btns=[]; items.forEach((it,i)=>{ const b=el("button","btn",it.name); b.type="button"; btns.push(b);
+    b.addEventListener("click",()=>{ btns.forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); showProt(HBBP,it.B,["HBB",it.n],it.t); }); $("#protTabs").appendChild(b); });
+  btns[0].click();
+  $("#pLoad").addEventListener("click",()=>{
+    const a=$("#pA").value.toUpperCase().replace(/\s/g,""), b=$("#pB").value.toUpperCase().replace(/\s/g,""), ok=/^[ARNDCQEGHILKMFPSTWYV-]+$/;
+    if(!ok.test(a)||!ok.test(b)){ $("#pMsg").textContent="Use the 20 standard one-letter amino acid codes and - for gaps."; return; }
+    if(a.length!==b.length){ $("#pMsg").textContent=`Both rows must have the same length (now ${a.length} and ${b.length}). Add - for gaps.`; return; }
+    if([...a].some((c,i)=>c==="-"&&b[i]==="-")){ $("#pMsg").textContent="A column cannot contain a gap in both rows."; return; }
+    $("#pMsg").textContent=""; btns.forEach(x=>x.classList.remove("sel"));
+    showProt(a,b,["Protein 1","Protein 2"],"Your alignment. Gap columns use −12 for the first position of a gap and −1 for each further position.");
+  });
+})();
+
+/* ---------- 5. matrix chooser ---------- */
+(function(){
+  const M=[
+    {lo:70,hi:101,b:"BLOSUM80",p:"≈ PAM120",r:"Above 70% identity.",t:"Closely related sequences, such as orthologues of near species or alleles."},
+    {lo:35,hi:70,b:"BLOSUM62",p:"≈ PAM160",r:"About 35–70% identity.",t:"Moderately related, or relationship unknown. The usual default."},
+    {lo:0,hi:35,b:"BLOSUM45",p:"≈ PAM250",r:"Below 35% identity.",t:"Distant relationships, the twilight zone of protein similarity."}
+  ];
+  function upd(){
+    const v=+$("#idSl").value; $("#idV").textContent=v; const box=$("#rec"); box.innerHTML="";
+    M.forEach(m=>{ const d=el("div","move"+(v>=m.lo&&v<m.hi?" on":""));
+      d.appendChild(el("b","",`${m.b} (${m.p})`)); d.appendChild(el("p","hint",`${m.r} ${m.t}`)); box.appendChild(d); });
+  }
+  $("#idSl").addEventListener("input",upd); upd();
+})();
+
+/* ---------- 6. exercises ---------- */
+(function(){
+  const EX=[["ILVK","LIVR"],["WGDE","FGNE"],["HCYP","HSFP"],["MKTAY","LRSGF"]];
+  const root=$("#exercises");
+  EX.forEach(([A,B],i)=>{
+    const r=scoreProt(A,B), d=el("div","ex"); d.appendChild(el("h3","",`Exercise ${i+1}`));
+    const box=el("div","seqbox"); const draw=(show)=>{ box.innerHTML=""; const r1=el("div","prow"),r2=el("div","prow"),r3=el("div","prow");
+      r1.appendChild(el("span","lbl","Protein 1")); r2.appendChild(el("span","lbl","Protein 2")); r3.appendChild(el("span","lbl",show?"Score":""));
+      for(let k=0;k<A.length;k++){ r1.appendChild(el("span","p",A[k])); r2.appendChild(el("span","p",B[k])); r3.appendChild(el("span","p sc"+(show?(r.cols[k]<0?" neg":" pos"):""),show?fmt(r.cols[k]):"")); }
+      box.append(r1,r2,r3); };
+    draw(false); d.appendChild(box);
+    const row=el("div","btns"), inp=el("input"); inp.type="number"; inp.setAttribute("aria-label",`Your score for exercise ${i+1}`);
+    const chk=el("button","btn solid","Check"), show=el("button","btn","Show working"); chk.type=show.type="button";
+    const msg=el("div","msg"); msg.setAttribute("role","status");
+    chk.addEventListener("click",()=>{ if(inp.value===""){ msg.className="msg bad"; msg.textContent="Enter a number first."; return; }
+      if(+inp.value===r.blo){ msg.className="msg ok"; msg.textContent="Correct."; } else { msg.className="msg bad"; msg.textContent="Not yet. Read row and column carefully: the matrix is symmetric, so either order works."; } });
+    show.addEventListener("click",()=>{ draw(true); msg.className="msg"; msg.textContent=r.cols.map((v,k)=>`${A[k]}–${B[k]} ${fmt(v)}`).join(", ")+` → total ${fmt(r.blo)}`; });
+    row.append(inp,chk,show); d.append(row,msg); root.appendChild(d);
+  });
+})();
+
+/* ---------- 7. quiz ---------- */
+(function(){
+  const Q=[
+    {q:"In BLOSUM62, what does a positive score for a pair of amino acids mean?", o:["The pair never occurs","The pair occurs in related proteins more often than expected by chance","The two residues are identical","The substitution is harmful"], a:1, w:"Scores are log-odds: positive means the pair is observed more often than chance would predict."},
+    {q:"What does the number 62 in BLOSUM62 refer to?", o:["62 million years of evolution","Sequences more than 62% identical were clustered when the matrix was built","62 accepted mutations per 100 residues","The matrix has 62 positive entries"], a:1, w:"Near-identical sequences were grouped at a 62% threshold so they would not dominate the counts."},
+    {q:"You are aligning two proteins that you expect to be only distantly related. Which matrix fits best?", o:["BLOSUM80","PAM30","BLOSUM45","An identity matrix"], a:2, w:"For BLOSUM, lower numbers suit more distant sequences. PAM30 and BLOSUM80 are for close relatives."},
+    {q:"Why does W–W score +11 while A–A scores only +4 in BLOSUM62?", o:["Tryptophan is larger","Tryptophan is rare, so a conserved W is stronger evidence of relationship than a conserved A","Alanine mutates more slowly","It is a typing error in the matrix"], a:1, w:"Matching a rare residue is less likely by chance, so it carries more information and earns a higher score."},
+    {q:"How do PAM and BLOSUM numbers relate to evolutionary distance?", o:["Higher numbers mean more distant sequences for both","Higher PAM means more distant; higher BLOSUM means more closely related","Lower numbers mean more distant for both","The numbers are unrelated to distance"], a:1, w:"PAM numbers count accepted mutations, so they grow with distance. BLOSUM numbers are identity thresholds, so they fall with distance."},
+    {q:"Glu6Val (sickle cell) scores −2 and Glu6Lys (HbC) scores +1. What can you conclude?", o:["HbC is always harmless","E→K is a more commonly accepted substitution in evolution than E→V","BLOSUM62 predicts disease severity","Sickle cell is not caused by a substitution"], a:1, w:"Substitution matrices describe evolutionary acceptance, not clinical effect. Severity depends on the structural context of the change."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true); bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++; big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You are ready for Module 6: BLAST." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      }); opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ location.hash="s7"; location.reload(); });
+  const sb=el("div","score"); sb.append(big,sub,retry); root.appendChild(sb);
+})();
+</script>
+</body>
+</html>

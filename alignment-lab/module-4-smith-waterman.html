@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 4: Smith-Waterman</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+
+.mxwrap{overflow-x:auto;padding:4px 0 10px}
+.mx{border-collapse:separate;border-spacing:3px;font-family:var(--mono)}
+.mx th{min-width:38px;height:30px;padding:0}
+.mx th .t{width:30px;height:28px}
+.mx th.idx{font-size:.7rem;color:var(--muted);font-weight:500}
+.mx td{min-width:40px;width:40px;height:40px;text-align:center;background:var(--soft);border-radius:6px;position:relative;font-weight:600;font-size:.95rem;padding:0;color:var(--ink)}
+.mx td .ar{position:absolute;top:1px;left:3px;font-size:.62rem;color:var(--muted);line-height:1.1;letter-spacing:-.5px}
+.mx td.empty{background:transparent;border:1px dashed var(--rule);color:transparent}
+.mx td.init{background:color-mix(in srgb,var(--muted) 14%,transparent)}
+.mx td.src{background:color-mix(in srgb,var(--accent) 22%,var(--soft))}
+.mx td.cur{outline:3px solid var(--accent);outline-offset:-1px}
+.mx td.path{background:var(--G);color:#1b1400}
+.mx td.path .ar{color:#1b1400}
+.mx td.ok{box-shadow:inset 0 0 0 2px var(--ok)}
+.mx td.no{box-shadow:inset 0 0 0 2px var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.mx td.click{cursor:pointer}
+.mx td.click:hover{filter:brightness(.94)}
+.mx input{width:36px;height:32px;text-align:center;font-family:var(--mono);font-size:.92rem;border:1.5px solid var(--rule);border-radius:5px;background:var(--surface);color:var(--ink);padding:0}
+.explain{font-size:.95rem;margin-top:10px}
+.explain .ln{display:flex;gap:10px;padding:4px 8px;border-radius:6px;flex-wrap:wrap}
+.explain .ln.best{background:color-mix(in srgb,var(--ok) 14%,transparent);font-weight:700}
+.explain .ln code{font-family:var(--mono)}
+.moves{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:640px){.moves{grid-template-columns:1fr}}
+.move{background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:12px}
+.move .g{font-family:var(--display);font-size:1.8rem;line-height:1}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctrl label{font-size:.85rem;color:var(--muted)}
+select{font:inherit;font-size:.9rem;padding:6px 8px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+input[type=number]{width:120px;font-family:var(--mono);font-size:1rem;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+.alts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mx td.max{box-shadow:inset 0 0 0 3px var(--ok)}
+.mx td.zero{color:var(--muted);font-weight:500}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:640px){.cmp{grid-template-columns:1fr}}
+.cmp .move h3{margin-bottom:6px}
+.loc{background:color-mix(in srgb,var(--G) 28%,transparent);border-radius:6px}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li><a href="module-1-why-align.html">1 Why align?</a></li>
+    <li><a href="module-2-scoring-basics.html">2 Scoring basics</a></li>
+    <li><a href="module-3-needleman-wunsch.html">3 Needleman-Wunsch</a></li>
+    <li class="on" aria-current="page">4 Smith-Waterman</li>
+    <li><a href="module-5-scoring-matrices.html">5 Scoring matrices</a></li>
+    <li><a href="module-6-blast.html">6 BLAST</a></li>
+    <li><a href="module-7-multiple-alignment.html">7 Multiple alignment</a></li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>Local alignment: find the part that matches</h1>
+  <p class="lead">Two sequences can share one conserved region and nothing else: a protein domain, a regulatory motif, an exon. Global alignment forces the whole length to align and buries that signal. The Smith-Waterman algorithm (1981) finds the best-scoring region only, using the same matrix as Needleman-Wunsch with three small changes.</p>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>Three changes turn global into local</h2></div>
+  <div class="moves">
+    <div class="move"><div class="g">0</div><b>A floor of zero</b><p class="hint">Every cell takes the maximum of the three usual options <i>and zero</i>. A negative running score is reset, so a bad region never drags down a good one that follows.</p></div>
+    <div class="move"><div class="g">0 0 0</div><b>First row and column are zero</b><p class="hint">The alignment may start anywhere, so leaving out the beginning of either sequence costs nothing.</p></div>
+    <div class="move"><div class="g">max</div><b>Traceback from the highest cell</b><p class="hint">Start at the highest value anywhere in the matrix and follow the arrows until you reach a zero. That stretch is the local alignment.</p></div>
+  </div>
+  <div class="note key">S(i, j) = max { 0,  S(i−1, j−1) + s(aᵢ, bⱼ),  S(i−1, j) + gap,  S(i, j−1) + gap }<br>Compare with Module 3: the only change in the formula is the zero.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>Fill the matrix: local or global</h2></div>
+  <p>Switch between the two algorithms on the same sequences to see exactly where they differ. In local mode, cells that fall back to zero have no arrow, and the highest cell is outlined in green.</p>
+  <div class="panel">
+    <div class="tabs" id="modeTabs" role="group" aria-label="Algorithm"></div>
+    <div class="tabs" id="nwTabs" role="group" aria-label="Choose example" style="margin-top:10px"></div>
+    <div class="ctrl" style="margin-top:12px">
+      <label for="pM">Match</label><select id="pM"><option>1</option><option>2</option><option>3</option></select>
+      <label for="pX">Mismatch</label><select id="pX"><option>-1</option><option>-2</option><option>-3</option><option>0</option></select>
+      <label for="pG">Gap</label><select id="pG"><option>-2</option><option>-1</option><option>-3</option><option>-4</option></select>
+    </div>
+    <div class="btns">
+      <button class="btn" id="bPrev" type="button">Previous</button>
+      <button class="btn solid" id="bNext" type="button">Next cell</button>
+      <button class="btn" id="bRow" type="button">Finish row</button>
+      <button class="btn" id="bAll" type="button">Fill all</button>
+      <button class="btn" id="bPlay" type="button">Play</button>
+      <button class="btn" id="bReset" type="button">Reset</button>
+    </div>
+    <div class="mxwrap" id="nwMx"></div>
+    <div class="explain" id="nwExplain" role="status"></div>
+    <details style="margin-top:12px">
+      <summary>Use your own sequences</summary>
+      <label class="f" for="ownA">Sequence 1, down the side (A, C, G, T; up to 14)</label>
+      <input type="text" id="ownA" value="AACCTGAGGT" maxlength="14" spellcheck="false" autocomplete="off">
+      <label class="f" for="ownB">Sequence 2, across the top</label>
+      <input type="text" id="ownB" value="TTGCTGAGGCA" maxlength="14" spellcheck="false" autocomplete="off">
+      <div class="btns"><button class="btn" id="ownLoad" type="button">Load sequences</button></div>
+      <div class="msg bad" id="ownMsg" role="status"></div>
+    </details>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>Traceback</h2></div>
+  <p>Local: start at the highest cell and stop at the first zero. Global: start at the bottom-right cell and stop at the top-left. The positions show which part of each sequence the alignment covers.</p>
+  <div class="panel">
+    <div class="btns">
+      <button class="btn solid" id="bTrace" type="button">Trace back</button>
+      <button class="btn" id="bTraceStep" type="button">Trace one step</button>
+    </div>
+    <div class="seqbox" id="trAln"></div>
+    <p class="hint" id="trText">Fill the whole matrix in section 2 first.</p>
+    <div class="alts" id="trAlts"></div>
+  </div>
+  <div class="note">If several cells share the highest value, there are several equally good local alignments, often in different regions of the sequences. Programs such as EMBOSS Water report one; BLAST, which you will meet in Module 6, reports every region that scores above a threshold.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>Global versus local on the same pair</h2></div>
+  <p>Both sequences below contain the same 15-base stretch of <i>HBB</i> (c.16–30), surrounded by unrelated flanking sequence of different lengths. Compare what each algorithm returns.</p>
+  <div class="panel">
+    <div class="tabs" id="cmpTabs" role="group" aria-label="Scoring scheme"></div>
+    <div class="cmp">
+      <div class="move"><h3>Global (Needleman-Wunsch)</h3><div class="seqbox mini" id="cmpG"></div><div class="stats" id="cmpGs"></div></div>
+      <div class="move"><h3>Local (Smith-Waterman)</h3><div class="seqbox mini" id="cmpL"></div><div class="stats" id="cmpLs"></div></div>
+    </div>
+    <p id="cmpText" style="margin-top:12px"></p>
+  </div>
+  <div class="note key"><b>A rule for scoring schemes:</b> local alignment only works when a random alignment scores negative on average. If mismatches cost nothing, the running score rarely drops to zero, the "local" alignment spreads across unrelated sequence, and it behaves almost like a global one. Choose the lenient scheme above to see this happen.</div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>Exercise: fill, find the maximum, trace back</h2></div>
+  <p>Scoring: match +1, mismatch −1, gap −2. Fill every empty cell (remember: nothing below zero) and press <b>Check</b>. Then click the cell where the traceback starts, and follow the path cell by cell until you reach a zero.</p>
+  <div class="panel">
+    <div class="tabs" id="exTabs" role="group" aria-label="Choose exercise"></div>
+    <div class="btns">
+      <button class="btn solid" id="exCheck" type="button">Check</button>
+      <button class="btn" id="exReveal" type="button">Reveal values</button>
+      <button class="btn" id="exReset" type="button">Start again</button>
+    </div>
+    <div class="mxwrap" id="exMx"></div>
+    <div class="msg" id="exMsg" role="status"></div>
+    <div class="seqbox" id="exAln"></div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <div class="stephead"><span class="stepnum">6</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 4 of 7 · Bioinformatics, 4th-year Biotechnology · Smith TF, Waterman MS. J Mol Biol. 1981;147(1):195–197.</div></footer>
+
+<script>
+"use strict";
+const HBB = "ATGGTGCACCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAAC";
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+const D=1,U=2,L=4;
+const ARROW = p => (p&D?"↖":"")+(p&U?"↑":"")+(p&L?"←":"");
+
+/* ---------- core: one function, two modes ---------- */
+function dpMatrix(a,b,s,local){
+  const n=a.length,m=b.length,S=[],P=[];
+  for(let i=0;i<=n;i++){ S.push(new Array(m+1).fill(0)); P.push(new Array(m+1).fill(0)); }
+  if(!local){ for(let i=1;i<=n;i++){ S[i][0]=i*s.gap; P[i][0]=U; } for(let j=1;j<=m;j++){ S[0][j]=j*s.gap; P[0][j]=L; } }
+  let max=0;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    const d=S[i-1][j-1]+(a[i-1]===b[j-1]?s.match:s.mis), u=S[i-1][j]+s.gap, l=S[i][j-1]+s.gap;
+    let mx=Math.max(d,u,l); if(local) mx=Math.max(mx,0);
+    S[i][j]=mx;
+    P[i][j]=(local&&mx===0)?0:((d===mx?D:0)|(u===mx?U:0)|(l===mx?L:0));
+    if(mx>max) max=mx;
+  }
+  const starts=[];
+  if(local){ if(max>0) for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) if(S[i][j]===max) starts.push([i,j]); }
+  else starts.push([n,m]);
+  return {S,P,max:local?max:S[n][m],starts,local};
+}
+function isEnd(R,i,j){ return R.local ? R.S[i][j]===0 : (i===0&&j===0); }
+function enumPaths(a,b,R,limit){
+  const out=[];
+  for(const [si,sj] of R.starts){
+    (function go(i,j,cells,A,B){
+      if(out.length>=limit) return;
+      if(isEnd(R,i,j)){ out.push({cells:[...cells,[i,j]],A,B,start:[si,sj],from:[i+1,j+1]}); return; }
+      const p=R.P[i][j], c=[...cells,[i,j]];
+      if(p&D) go(i-1,j-1,c,a[i-1]+A,b[j-1]+B);
+      if(p&U) go(i-1,j,c,a[i-1]+A,"-"+B);
+      if(p&L) go(i,j-1,c,"-"+A,b[j-1]+B);
+    })(si,sj,[],"","");
+  }
+  return out;
+}
+function countPaths(R){
+  const S=R.S,P=R.P,n=S.length-1,m=S[0].length-1,C=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=0;i<=n;i++) for(let j=0;j<=m;j++){
+    if(isEnd(R,i,j)){ C[i][j]=1; continue; }
+    const p=P[i][j]; C[i][j]=(p&D?C[i-1][j-1]:0)+(p&U?C[i-1][j]:0)+(p&L?C[i][j-1]:0);
+  }
+  return R.starts.reduce((t,[i,j])=>t+C[i][j],0);
+}
+
+/* ---------- rendering ---------- */
+function tileEl(ch){ return el("span","t "+(ch==="-"?"gap":ch),ch); }
+function alignRows(A,B,labels=["Seq 1","Seq 2"],hl){
+  const frag=document.createDocumentFragment();
+  const ra=el("div","row"), mid=el("div","row mid"), rb=el("div","row");
+  ra.appendChild(el("span","lbl",labels[0])); mid.appendChild(el("span","lbl","")); rb.appendChild(el("span","lbl",labels[1]));
+  for(let i=0;i<A.length;i++){ const x=A[i],y=B[i]; const ta=tileEl(x), tb=tileEl(y);
+    if(hl && (i<hl[0]||i>=hl[1])){ ta.style.opacity=tb.style.opacity=".35"; }
+    ra.appendChild(ta); rb.appendChild(tb);
+    let s=" ",c="m"; if(x!=="-"&&y!=="-"){ if(x===y) s="|"; else {s="✕"; c="m x";} } mid.appendChild(el("span",c,s)); }
+  frag.append(ra,mid,rb); return frag;
+}
+function renderMatrix(box,a,b,cell){
+  box.innerHTML="";
+  const tb=el("table","mx"), head=el("tr"), idx=el("tr");
+  idx.appendChild(el("th")); idx.appendChild(el("th")); idx.appendChild(el("th","idx","0"));
+  for(let j=1;j<=b.length;j++) idx.appendChild(el("th","idx",String(j)));
+  head.appendChild(el("th")); head.appendChild(el("th")); head.appendChild(el("th","idx","–"));
+  for(let j=0;j<b.length;j++){ const th=el("th"); th.appendChild(tileEl(b[j])); head.appendChild(th); }
+  tb.append(idx,head);
+  for(let i=0;i<=a.length;i++){
+    const tr=el("tr"); tr.appendChild(el("th","idx",String(i)));
+    const th=el("th"); if(i===0) th.appendChild(el("span","idx","–")); else th.appendChild(tileEl(a[i-1])); tr.appendChild(th);
+    for(let j=0;j<=b.length;j++){ const td=el("td"); cell(i,j,td); tr.appendChild(td); }
+    tb.appendChild(tr);
+  }
+  box.appendChild(tb);
+}
+function makeTabs(container, items, onPick){
+  const btns=items.map((it,i)=>{ const b=el("button","btn",it.name); b.type="button"; b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",()=>{ btns.forEach(x=>{x.classList.remove("sel");x.setAttribute("aria-pressed","false");}); b.classList.add("sel"); b.setAttribute("aria-pressed","true"); onPick(it,i); });
+    container.appendChild(b); return b; });
+  btns[0].click(); return btns;
+}
+function span(p,A,B){ /* 1-based ranges covered in each sequence */
+  const la=A.replace(/-/g,"").length, lb=B.replace(/-/g,"").length;
+  return {a:[p.from[0],p.from[0]+la-1], b:[p.from[1],p.from[1]+lb-1]};
+}
+
+/* ---------- 2 & 3. stepper ---------- */
+const NW = {a:"",b:"",s:{match:1,mis:-1,gap:-2},local:true,R:null,k:0,path:null,trStep:0,timer:null};
+const total=()=>NW.a.length*NW.b.length;
+const cellOf=k=>[Math.floor(k/NW.b.length)+1, k%NW.b.length+1];
+function readScheme(){ NW.s={match:+$("#pM").value, mis:+$("#pX").value, gap:+$("#pG").value}; }
+function rebuild(keepK){ stopPlay(); readScheme(); NW.R=dpMatrix(NW.a,NW.b,NW.s,NW.local); if(!keepK) NW.k=0; NW.path=null; NW.trStep=0; renderNW(); }
+function renderNW(){
+  const {a,b,R,k}=NW, S=R.S, P=R.P, cur=k>0?cellOf(k-1):null, done=k===total();
+  const onPath=new Set(); if(NW.path) NW.path.cells.slice(0,NW.trStep).forEach(c=>onPath.add(c+""));
+  const filled=(i,j)=>i===0||j===0||((i-1)*b.length+(j-1))<k;
+  renderMatrix($("#nwMx"),a,b,(i,j,td)=>{
+    if(!filled(i,j)){ td.className="empty"; td.textContent="·"; return; }
+    td.textContent=S[i][j];
+    if(i===0||j===0) td.classList.add("init");
+    else if(NW.local&&S[i][j]===0) td.classList.add("zero");
+    if(P[i][j]) td.appendChild(el("span","ar",ARROW(P[i][j])));
+    if(cur&&!NW.path){ const [ci,cj]=cur;
+      if(i===ci&&j===cj) td.classList.add("cur");
+      else if((i===ci-1&&j===cj-1)||(i===ci-1&&j===cj)||(i===ci&&j===cj-1)) td.classList.add("src"); }
+    if(done&&NW.local&&R.max>0&&S[i][j]===R.max&&i>0&&j>0) td.classList.add("max");
+    if(onPath.has(i+","+j)) td.classList.add("path");
+  });
+  const ex=$("#nwExplain"); ex.innerHTML="";
+  if(!cur) ex.appendChild(el("p","", NW.local ? "Local mode: the first row and column are all zero, because the alignment may begin anywhere. Press Next cell to compute cell (1, 1)." : `Global mode: the first row and column are multiples of the gap penalty (0, ${NW.s.gap}, ${2*NW.s.gap}…). Press Next cell to compute cell (1, 1).`));
+  else {
+    const [i,j]=cur, x=a[i-1], y=b[j-1], sc=x===y?NW.s.match:NW.s.mis;
+    const d=S[i-1][j-1]+sc, u=S[i-1][j]+NW.s.gap, l=S[i][j-1]+NW.s.gap, mx=S[i][j];
+    ex.appendChild(el("p","",`Cell (${i}, ${j}): ${a[i-1]} in sequence 1 meets ${b[j-1]} in sequence 2.`));
+    const ln=(g,txt,v)=>{ const r=el("div","ln"+(v===mx?" best":"")); r.appendChild(el("span","",g)); r.appendChild(el("code","",txt)); ex.appendChild(r); };
+    ln("↖",`${S[i-1][j-1]} + ${sc} (${x === y ? "match" : "mismatch"}) = ${d}`,d);
+    ln("↑",`${S[i-1][j]} + ${NW.s.gap} (gap) = ${u}`,u);
+    ln("←",`${S[i][j-1]} + ${NW.s.gap} (gap) = ${l}`,l);
+    if(NW.local) ln("0","start afresh",0);
+    ex.appendChild(el("p","hint", (NW.local&&mx===0) ? "Maximum = 0: the running score is reset and no arrow is stored. A new local alignment could begin after this cell." : `Maximum = ${mx}. Stored arrow${ARROW(P[i][j]).length>1?"s":""}: ${ARROW(P[i][j])}`));
+  }
+  if(done) ex.appendChild(el("p","", NW.local ? (R.max>0 ? `Matrix complete. Highest value: ${R.max}, found in ${R.starts.length} cell${R.starts.length>1?"s":""} (outlined in green). That is the local alignment score.` : "Matrix complete. Every cell is zero: under this scheme the sequences share no region worth aligning.") : `Matrix complete. Global score: ${R.max}, in the bottom-right cell.`));
+  $("#bPrev").disabled=k===0; $("#bNext").disabled=$("#bRow").disabled=$("#bAll").disabled=done;
+  renderTrace();
+}
+function renderTrace(){
+  const box=$("#trAln"), txt=$("#trText"), alts=$("#trAlts"); box.innerHTML=""; alts.innerHTML="";
+  const done=NW.k===total(); $("#bTrace").disabled=$("#bTraceStep").disabled=!done||NW.R.starts.length===0;
+  if(!done){ txt.textContent="Fill the whole matrix in section 2 first."; return; }
+  if(!NW.R.starts.length){ txt.textContent="There is nothing to trace: the highest value is zero."; return; }
+  if(!NW.path){ txt.textContent= NW.local ? "Press Trace back to start from the highest cell." : "Press Trace back to start from the bottom-right cell."; return; }
+  const p=NW.path, cols=Math.max(0,NW.trStep-1), A=p.A.slice(p.A.length-cols), B=p.B.slice(p.B.length-cols);
+  if(cols>0) box.appendChild(alignRows(A,B));
+  if(NW.trStep<p.cells.length){ txt.textContent=`Built ${cols} of ${p.A.length} columns, from right to left.`; return; }
+  const sp=span(p,p.A,p.B), n=countPaths(NW.R);
+  txt.textContent = (NW.local ? `Local alignment, score ${NW.R.max}. It covers positions ${sp.a[0]}–${sp.a[1]} of sequence 1 and ${sp.b[0]}–${sp.b[1]} of sequence 2. The rest of both sequences is left out.` : `Global alignment, score ${NW.R.max}, covering both sequences completely.`) + (n>1?` There are ${n} co-optimal alignments; choose one below.`:"");
+  if(n>1) enumPaths(NW.a,NW.b,NW.R,12).forEach((alt,ix)=>{ const bt=el("button","btn",`Alignment ${ix+1}`); bt.type="button";
+    if(alt.A===p.A&&alt.B===p.B&&alt.start+""===p.start+"") bt.classList.add("sel");
+    bt.addEventListener("click",()=>{ NW.path=alt; NW.trStep=alt.cells.length; renderNW(); }); alts.appendChild(bt); });
+}
+function stopPlay(){ if(NW.timer){ clearInterval(NW.timer); NW.timer=null; $("#bPlay").textContent="Play"; } }
+(function(){
+  let preset=null;
+  const setScheme=s=>{ $("#pM").value=s.match; $("#pX").value=s.mis; $("#pG").value=s.gap; };
+  makeTabs($("#modeTabs"),[{name:"Local (Smith-Waterman)",local:true},{name:"Global (Needleman-Wunsch)",local:false}],it=>{ NW.local=it.local; if(NW.a) rebuild(true); });
+  const items=[
+    {name:"Shared motif", a:"TTAGCCTGAGGA", b:"CCTGAGGACGTA", s:{match:1,mis:-1,gap:-2}},
+    {name:"Textbook: TGTTACGG vs GGTTGACTA", a:"TGTTACGG", b:"GGTTGACTA", s:{match:3,mis:-3,gap:-2}},
+    {name:"Two equal regions", a:"ACGTTTTACG", b:"ACGCCACG", s:{match:1,mis:-1,gap:-2}},
+    {name:"Unrelated", a:"AAAAAA", b:"CGCGCG", s:{match:1,mis:-1,gap:-2}}
+  ];
+  makeTabs($("#nwTabs"),items,it=>{ NW.a=it.a; NW.b=it.b; setScheme(it.s); rebuild(false); });
+  ["#pM","#pX","#pG"].forEach(s=>$(s).addEventListener("change",()=>rebuild(false)));
+  $("#bNext").addEventListener("click",()=>{ if(NW.k<total()){ NW.k++; NW.path=null; renderNW(); } });
+  $("#bPrev").addEventListener("click",()=>{ stopPlay(); if(NW.k>0){ NW.k--; NW.path=null; renderNW(); } });
+  $("#bRow").addEventListener("click",()=>{ const m=NW.b.length; NW.k=Math.min(total(),(Math.floor(NW.k/m)+1)*m); NW.path=null; renderNW(); });
+  $("#bAll").addEventListener("click",()=>{ stopPlay(); NW.k=total(); NW.path=null; renderNW(); });
+  $("#bReset").addEventListener("click",()=>{ stopPlay(); NW.k=0; NW.path=null; renderNW(); });
+  $("#bPlay").addEventListener("click",()=>{
+    if(NW.timer){ stopPlay(); return; } if(NW.k===total()) NW.k=0;
+    $("#bPlay").textContent="Pause";
+    NW.timer=setInterval(()=>{ if(NW.k>=total()){ stopPlay(); return; } NW.k++; NW.path=null; renderNW(); },550);
+  });
+  const startTrace=()=>{ NW.path=enumPaths(NW.a,NW.b,NW.R,1)[0]; NW.trStep=0; };
+  $("#bTrace").addEventListener("click",()=>{ startTrace(); NW.trStep=NW.path.cells.length; renderNW(); });
+  $("#bTraceStep").addEventListener("click",()=>{ if(!NW.path||NW.trStep>=NW.path.cells.length) startTrace(); NW.trStep++; renderNW(); });
+  $("#ownLoad").addEventListener("click",()=>{
+    const a=$("#ownA").value.toUpperCase().replace(/\s/g,""), b=$("#ownB").value.toUpperCase().replace(/\s/g,"");
+    if(!/^[ACGT]{1,14}$/.test(a)||!/^[ACGT]{1,14}$/.test(b)){ $("#ownMsg").textContent="Use only A, C, G and T, between 1 and 14 bases per sequence."; return; }
+    $("#ownMsg").textContent=""; document.querySelectorAll("#nwTabs .btn").forEach(x=>x.classList.remove("sel")); NW.a=a; NW.b=b; rebuild(false);
+  });
+})();
+
+/* ---------- 4. comparison ---------- */
+(function(){
+  const core=HBB.slice(15,30);
+  const A="GGCATTAGC"+core+"TATT", B="TACGGTCAGTCCAAG"+core+"CA";
+  const schemes=[
+    {name:"Standard: +1 / −1 / −2", s:{match:1,mis:-1,gap:-2}},
+    {name:"Stricter: +1 / −3 / −5", s:{match:1,mis:-3,gap:-5}},
+    {name:"Too lenient: +1 / 0 / −1", s:{match:1,mis:0,gap:-1}}
+  ];
+  function stat(Al,Bl){ let mt=0,gp=0; for(let i=0;i<Al.length;i++){ if(Al[i]==="-"||Bl[i]==="-") gp++; else if(Al[i]===Bl[i]) mt++; } return {mt,gp,L:Al.length}; }
+  function show(target,stats,R,p,local){
+    const box=$(target); box.innerHTML="";
+    if(!p){ box.appendChild(el("p","hint","No alignment: the highest value is zero.")); return; }
+    let Afull=p.A, Bfull=p.B, hl=null;
+    if(local){ const sp=span(p,p.A,p.B);
+      const preA=A.slice(0,sp.a[0]-1), preB=B.slice(0,sp.b[0]-1), postA=A.slice(sp.a[1]), postB=B.slice(sp.b[1]);
+      const pl=Math.max(preA.length,preB.length), ql=Math.max(postA.length,postB.length);
+      Afull=" ".repeat(pl-preA.length)+preA.toLowerCase()+p.A+postA.toLowerCase()+" ".repeat(ql-postA.length);
+      Bfull=" ".repeat(pl-preB.length)+preB.toLowerCase()+p.B+postB.toLowerCase()+" ".repeat(ql-postB.length);
+      hl=[pl,pl+p.A.length]; }
+    const frag=alignRows(Afull.toUpperCase().replace(/ /g,"-"),Bfull.toUpperCase().replace(/ /g,"-"),["Seq 1","Seq 2"],hl);
+    if(local){ /* outside the local region: hide symbols and fade */
+      const rows=frag.querySelectorAll(".row"); rows[1].querySelectorAll(".m").forEach((m,i)=>{ if(i<hl[0]||i>=hl[1]) m.textContent=" "; });
+      [0,2].forEach(r=>rows[r].querySelectorAll(".t").forEach((t,i)=>{ if((i<hl[0]||i>=hl[1])&&t.classList.contains("gap")){ t.className="t pad"; t.textContent=""; } }));
+    }
+    box.appendChild(frag);
+    const st=stat(p.A,p.B), out=$(stats); out.innerHTML="";
+    for(const [k,v] of [["Score",R.max],["Columns aligned",st.L],["Matches",st.mt],["Gap positions",st.gp]]){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",String(v))); out.appendChild(d); }
+    return st;
+  }
+  makeTabs($("#cmpTabs"),schemes,it=>{
+    const RG=dpMatrix(A,B,it.s,false), RL=dpMatrix(A,B,it.s,true);
+    const pg=enumPaths(A,B,RG,1)[0], pl=enumPaths(A,B,RL,1)[0];
+    show("#cmpG","#cmpGs",RG,pg,false); const sl=show("#cmpL","#cmpLs",RL,pl,true);
+    const t=$("#cmpText");
+    if(it.s.mis===0) t.textContent=`With no mismatch penalty, the local alignment grows to ${sl.L} columns and reaches into the unrelated flanks. Its region is no longer a clear answer to the question "which part matches?".`;
+    else t.textContent=`Global alignment must account for every base, so the unrelated flanks pull its score down to ${RG.max}. Local alignment isolates the shared ${sl.L}-column region with ${sl.mt} matches. Faded bases lie outside the local alignment.`;
+  });
+})();
+
+/* ---------- 5. exercise ---------- */
+(function(){
+  const sc={match:1,mis:-1,gap:-2};
+  const E={a:"",b:"",R:null,vals:{},marks:{},phase:"fill",path:[],revealed:false};
+  const items=[{name:"TACG vs ACGA",a:"TACG",b:"ACGA"},{name:"GATCA vs TATCG",a:"GATCA",b:"TATCG"},{name:"CCATG vs ATGCC",a:"CCATG",b:"ATGCC"}];
+  const msg=$("#exMsg");
+  function load(it){ E.a=it.a; E.b=it.b; E.R=dpMatrix(it.a,it.b,sc,true); E.vals={}; E.marks={}; E.phase="fill"; E.path=[]; E.revealed=false; msg.className="msg"; msg.textContent=""; $("#exAln").innerHTML=""; render(); }
+  function clickable(td,i,j,fn){ td.classList.add("click"); td.tabIndex=0; td.setAttribute("role","button"); td.setAttribute("aria-label",`Cell ${i}, ${j}`);
+    td.addEventListener("click",fn); td.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fn(); } }); }
+  function render(){
+    const S=E.R.S, onPath=new Set(E.path.map(c=>c+"")), cur=E.path[E.path.length-1];
+    const finished = cur && S[cur[0]][cur[1]]===0;
+    renderMatrix($("#exMx"),E.a,E.b,(i,j,td)=>{
+      const key=i+","+j;
+      if(i===0||j===0){ td.textContent=0; td.classList.add("init"); }
+      else if(E.phase==="fill"){
+        const inp=el("input"); inp.type="text"; inp.inputMode="numeric"; inp.value=E.vals[key]??""; inp.setAttribute("aria-label",`Cell ${i}, ${j}`);
+        inp.addEventListener("input",()=>{ E.vals[key]=inp.value.trim(); delete E.marks[key]; td.classList.remove("ok","no"); });
+        td.appendChild(inp); if(E.marks[key]) td.classList.add(E.marks[key]);
+      } else td.textContent=S[i][j];
+      if(onPath.has(key)) td.classList.add("path");
+      if(E.phase==="start" && i>0 && j>0) clickable(td,i,j,()=>pickStart(i,j));
+      if(E.phase==="trace" && !finished && cur){ const [ci,cj]=cur;
+        if((i===ci-1&&j===cj-1)||(i===ci-1&&j===cj)||(i===ci&&j===cj-1)) clickable(td,i,j,()=>step(i,j)); }
+    });
+  }
+  function pickStart(i,j){
+    if(E.R.S[i][j]!==E.R.max){ msg.className="msg bad"; msg.textContent=`Cell (${i}, ${j}) holds ${E.R.S[i][j]}. Look for the highest value in the whole matrix.`; return; }
+    E.path=[[i,j]]; E.phase="trace"; msg.className="msg"; msg.textContent=`Correct start: ${E.R.max} is the highest value. Now follow the path back until you reach a zero.`; render();
+  }
+  function step(i,j){
+    const [ci,cj]=E.path[E.path.length-1], p=E.R.P[ci][cj], dir=(i===ci-1&&j===cj-1)?D:(i===ci-1?U:L);
+    if(!(p&dir)){ msg.className="msg bad"; msg.textContent=`Cell (${i}, ${j}) cannot produce ${E.R.S[ci][cj]} in cell (${ci}, ${cj}). Check the calculations again.`; return; }
+    E.path.push([i,j]);
+    if(E.R.S[i][j]===0){
+      let A="",B=""; for(let k=0;k<E.path.length-1;k++){ const [x,y]=E.path[k],[px,py]=E.path[k+1];
+        if(px===x-1&&py===y-1){A=E.a[x-1]+A;B=E.b[y-1]+B;} else if(px===x-1){A=E.a[x-1]+A;B="-"+B;} else {A="-"+A;B=E.b[y-1]+B;} }
+      msg.className="msg ok"; msg.textContent=`You reached a zero: the local alignment ends here. Score ${E.R.max}. Your local alignment:`;
+      const box=$("#exAln"); box.innerHTML=""; box.appendChild(alignRows(A,B));
+    } else { msg.className="msg"; msg.textContent="Correct step."; }
+    render();
+  }
+  $("#exCheck").addEventListener("click",()=>{
+    if(E.phase!=="fill") return;
+    let wrong=0, empty=0, neg=0;
+    for(let i=1;i<=E.a.length;i++) for(let j=1;j<=E.b.length;j++){ const key=i+","+j, v=E.vals[key];
+      if(v===undefined||v===""){ empty++; delete E.marks[key]; continue; }
+      if(+v<0) neg++;
+      if(+v===E.R.S[i][j]) E.marks[key]="ok"; else { E.marks[key]="no"; wrong++; } }
+    if(empty){ msg.className="msg bad"; msg.textContent=`${empty} cell${empty>1?"s are":" is"} still empty.${wrong?` ${wrong} filled cell${wrong>1?"s are":" is"} wrong (red).`:""}`; render(); return; }
+    if(wrong){ msg.className="msg bad"; msg.textContent=`${wrong} cell${wrong>1?"s are":" is"} wrong (red).${neg?" Local alignment never stores negative values: anything below zero becomes 0.":""}`; render(); return; }
+    E.phase="start"; msg.className="msg ok"; msg.textContent=`All values correct${E.revealed?" (revealed)":""}. Now click the cell where the traceback starts.`; render();
+  });
+  $("#exReveal").addEventListener("click",()=>{ for(let i=1;i<=E.a.length;i++) for(let j=1;j<=E.b.length;j++) E.vals[i+","+j]=String(E.R.S[i][j]); E.revealed=true; E.marks={}; render(); });
+  $("#exReset").addEventListener("click",()=>load({a:E.a,b:E.b}));
+  makeTabs($("#exTabs"),items,load);
+})();
+
+/* ---------- 6. quiz ---------- */
+(function(){
+  const Q=[
+    {q:"What is the key change in the Smith-Waterman recurrence compared with Needleman-Wunsch?", o:["Gaps are not allowed","Zero is added as a fourth option, so no cell is negative","Mismatches are ignored","The matrix is filled from bottom to top"], a:1, w:"Taking max(0, …) resets the score whenever it would turn negative. This lets an alignment begin anywhere."},
+    {q:"What values fill the first row and column of a Smith-Waterman matrix?", o:["Multiples of the gap penalty","All zeros","The match score","They are left empty"], a:1, w:"Skipping the beginning of either sequence costs nothing in local alignment, so the borders are zero."},
+    {q:"Where does the Smith-Waterman traceback start?", o:["Bottom-right cell","Top-left cell","The cell with the highest value anywhere in the matrix","The first cell with a positive value"], a:2, w:"The best local alignment ends wherever the score peaks, which can be anywhere in the matrix."},
+    {q:"When does the Smith-Waterman traceback stop?", o:["At the top-left cell","When it reaches a cell with value zero","After a fixed number of steps","At the first mismatch"], a:1, w:"A zero marks the point where the alignment began, because the score restarted there."},
+    {q:"Which question is best answered by local alignment?", o:["Are two alleles of the same gene identical along their full length?","Do two proteins of different families share one conserved domain?","What is the full global similarity of two orthologous genes of the same length?","How many bases does a genome contain?"], a:1, w:"Local alignment finds a similar region even when the rest of the sequences is unrelated, which is exactly the case for a shared domain."},
+    {q:"With match +1, mismatch 0 and gap −1, local alignments become very long. Why?", o:["The algorithm has a bug","Random alignments no longer score negative on average, so the score rarely drops to zero","Gaps become free","The matrix becomes larger"], a:1, w:"Local alignment needs a scheme in which unrelated sequence pulls the score down. Without mismatch penalties it keeps extending into unrelated regions."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true); bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++; big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You are ready for Module 5: scoring matrices." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      }); opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ location.hash="s6"; location.reload(); });
+  const sb=el("div","score"); sb.append(big,sub,retry); root.appendChild(sb);
+})();
+</script>
+</body>
+</html>
