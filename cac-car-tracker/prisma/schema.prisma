@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id               String        @id @default(cuid())
+  token            String        @unique
+  customerName     String
+  customerPhone    String
+  carMake          String
+  carModel         String
+  plate            String
+  serviceName      String
+  currentStage     String
+  estimatedReadyAt DateTime?
+  createdAt        DateTime      @default(now())
+  deliveredAt      DateTime?
+  updates          StageUpdate[]
+}
+
+model StageUpdate {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage     String
+  note      String?
+  photoPath String?
+  createdAt DateTime @default(now())
+
+  @@index([jobId, createdAt])
+}
