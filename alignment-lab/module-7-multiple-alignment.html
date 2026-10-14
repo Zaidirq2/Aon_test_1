@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 7: Multiple alignment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+
+.msa{display:inline-grid;gap:2px;font-family:var(--mono)}
+.msa .r{display:flex;gap:2px;align-items:center}
+.msa .lbl{width:64px;font-size:.8rem;color:var(--muted);font-family:var(--sans);flex:none;text-align:right;padding-right:8px}
+.msa .c{width:22px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:3px;font-weight:600;font-size:.85rem;flex:none;color:#fff;border:0;padding:0}
+.msa .c.g{background:transparent;color:var(--gapc)}
+.msa .c.plain{background:var(--soft);color:var(--ink)}
+.msa .c.sel{box-shadow:0 0 0 2px var(--ink)}
+.msa .c.fade{opacity:.35}
+.msa .cons{width:22px;text-align:center;font-weight:700;flex:none;font-size:.9rem;height:18px}
+.msa .bar{width:22px;height:30px;display:flex;align-items:flex-end;flex:none}
+.msa .bar i{display:block;width:100%;background:var(--accent);border-radius:2px 2px 0 0}
+.msa button.c{cursor:pointer}
+.k-hyd{background:var(--C)} .k-pos{background:var(--T)} .k-neg{background:#8A55C8} .k-pol{background:var(--A)} .k-gp{background:var(--G);color:#1b1400!important} .k-aro{background:#1E8E99} .k-cys{background:#C2457E}
+.mx{border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:.9rem}
+.mx th{font-weight:600;padding:4px 6px;font-size:.82rem}
+.mx td{min-width:46px;height:34px;text-align:center;border-radius:6px;font-weight:600}
+.mx td.min{outline:3px solid var(--G)}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.ctrl label{font-size:.88rem;color:var(--muted)}
+input[type=number]{width:110px;font-family:var(--mono);font-size:1rem;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+textarea{width:100%;font-family:var(--mono);font-size:.92rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+.ex{padding:14px 0;border-bottom:1px solid var(--rule)}
+.ex:last-child{border-bottom:0}
+.info{background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;margin-top:12px}
+svg text{font-family:var(--mono)}
+.mergebox{margin-top:12px}
+.grp{display:inline-block;padding:2px 8px;border-radius:6px;background:var(--soft);font-family:var(--mono);font-size:.85rem;margin:0 2px}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li><a href="module-1-why-align.html">1 Why align?</a></li>
+    <li><a href="module-2-scoring-basics.html">2 Scoring basics</a></li>
+    <li><a href="module-3-needleman-wunsch.html">3 Needleman-Wunsch</a></li>
+    <li><a href="module-4-smith-waterman.html">4 Smith-Waterman</a></li>
+    <li><a href="module-5-scoring-matrices.html">5 Scoring matrices</a></li>
+    <li><a href="module-6-blast.html">6 BLAST</a></li>
+    <li class="on" aria-current="page">7 Multiple alignment</li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>Many sequences, one alignment</h1>
+  <p class="lead">A multiple sequence alignment (MSA) places three or more related sequences in one set of columns. Positions that stay the same across a whole family stand out, and they usually matter: for structure, for function, or as targets for primers and probes.</p>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>Reading a real MSA: the human globins</h2></div>
+  <p>The first residues of four human haemoglobin chains: β (<i>HBB</i>), δ (<i>HBD</i>), Gγ (<i>HBG2</i>) and α (<i>HBA1</i>). α-globin needs two gaps against the β-like chains. Tap a column to see its residues and what the conservation symbol means.</p>
+  <div class="panel">
+    <div class="tabs" id="colTabs" role="group" aria-label="Colour mode"></div>
+    <div class="seqbox" id="globin" style="margin-top:12px"></div>
+    <div class="legend" id="globLegend"></div>
+    <div class="info" id="globInfo" role="status">Tap a column.</div>
+  </div>
+  <div class="note key"><b>Conservation symbols</b> (simplified from the Clustal convention): <b>*</b> identical in every sequence; <b>:</b> different residues, but all from the same chemical group (the groups of Module 5); blank: no common pattern. The bars show the fraction of sequences that carry the most common residue.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>Why not just extend Needleman-Wunsch?</h2></div>
+  <p>Exact dynamic programming works for more than two sequences: the matrix simply gains one dimension per sequence. The cost explodes. Aligning N sequences of length L needs about L<sup>N</sup> cells.</p>
+  <div class="panel">
+    <div class="ctrl">
+      <div style="min-width:200px;flex:1"><label for="cN">Number of sequences N: <b id="cNv">3</b></label><input type="range" id="cN" min="2" max="12" value="3"></div>
+      <div style="min-width:200px;flex:1"><label for="cL">Length L: <b id="cLv">300</b></label><input type="range" id="cL" min="50" max="1000" step="50" value="300"></div>
+    </div>
+    <div class="stats" id="cOut" style="margin-top:12px"></div>
+  </div>
+  <div class="note">This is why every practical MSA program is a heuristic. The most common strategy is <b>progressive alignment</b>, used by Clustal Omega and as the backbone of MUSCLE and MAFFT: align the most similar sequences first, then add the others one group at a time.</div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>Progressive alignment, step by step</h2></div>
+  <p>Five short DNA sequences. The method has three stages: compare every pair, build a guide tree from those distances, then merge sequences and groups in the order of the tree.</p>
+  <div class="panel">
+    <div class="tabs" id="pgSteps" role="group" aria-label="Stage"></div>
+    <div id="pgStage" style="margin-top:14px"></div>
+    <details style="margin-top:14px">
+      <summary>Use your own sequences</summary>
+      <label class="f" for="own">3 to 6 DNA sequences, one per line (A, C, G, T; up to 20 bases each)</label>
+      <textarea id="own" rows="5" spellcheck="false">GGCACTTTGTTA
+GCACTTGTTA
+GCGCACTGTTA
+GCGACTTGTTA
+GCGCACTTATTA</textarea>
+      <div class="btns"><button class="btn" id="ownLoad" type="button">Align</button></div>
+      <div class="msg bad" id="ownMsg" role="status"></div>
+    </details>
+  </div>
+  <div class="note key"><b>Once a gap, always a gap.</b> When two groups are merged, gaps already placed inside a group are never moved again. An error made early, when the closest pairs are aligned, is carried into the final result. That is why the order of merging matters, and why newer programs add a refinement stage that re-aligns parts of the MSA.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>Does the guide tree matter?</h2></div>
+  <p>The same five sequences, merged in two different orders. The sum-of-pairs (SP) score adds up the pairwise scores of every pair of rows in every column (match +1, mismatch −1, base against gap −2, gap against gap 0). Higher is better.</p>
+  <div class="panel">
+    <div class="grid2">
+      <div><h3>Guide-tree order</h3><div class="seqbox" id="ordTree"></div><div class="stats" id="ordTreeS"></div></div>
+      <div><h3>Input order (1+2, then 3, 4, 5)</h3><div class="seqbox" id="ordIn"></div><div class="stats" id="ordInS"></div></div>
+    </div>
+    <p id="ordText" style="margin-top:10px"></p>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>Exercises</h2></div>
+  <div class="panel" id="exercises"></div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <div class="stephead"><span class="stepnum">6</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 7 of 7 · Bioinformatics, 4th-year Biotechnology · Feng DF, Doolittle RF. J Mol Evol. 1987;25(4):351–360. Sievers F, et al. Mol Syst Biol. 2011;7:539. Globin sequences: human UniProt entries for HBB, HBD, HBG2 and HBA1, initiator Met included.</div></footer>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+const fmt = v => (Math.round(v*100)/100>0?"+":"")+(Math.round(v*100)/100);
+const GROUPS=["C","STAGP","DENQ","HRK","MILV","FYW"];
+const grp=a=>GROUPS.findIndex(g=>g.includes(a));
+const KIND={A:"hyd",I:"hyd",L:"hyd",M:"hyd",F:"hyd",W:"hyd",V:"hyd",K:"pos",R:"pos",D:"neg",E:"neg",N:"pol",Q:"pol",S:"pol",T:"pol",G:"gp",P:"gp",H:"aro",Y:"aro",C:"cys"};
+const KNAME={hyd:"hydrophobic",pos:"positive",neg:"negative",pol:"polar",gp:"glycine / proline",aro:"histidine / tyrosine",cys:"cysteine"};
+
+/* ---------- 1. globin MSA ---------- */
+const GLOB=[
+  ["HBB", "MVHLTPEEKSAVTALWGKVN--VDEVGGEALGRLLVVYPWTQRFF"],
+  ["HBD", "MVHLTPEEKTAVNALWGKVN--VDAVGGEALGRLLVVYPWTQRFF"],
+  ["HBG2","MGHFTEEDKATITSLWGKVN--VEDAGGETLGRLLVVYPWTQRFF"],
+  ["HBA1","MV-LSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYF"]
+];
+function colInfo(rows,c){
+  const res=rows.map(r=>r[c]), nog=res.filter(x=>x!=="-");
+  const cnt={}; res.forEach(x=>cnt[x]=(cnt[x]||0)+1);
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+  let sym=" ";
+  if(nog.length===res.length){ if(nog.every(x=>x===nog[0])) sym="*"; else if(nog.every(x=>grp(x)===grp(nog[0]))) sym=":"; }
+  return {res,cnt,top,frac:top[0]==="-"?0:top[1]/res.length,sym};
+}
+(function(){
+  let mode="prop", sel=null;
+  const L=GLOB[0][1].length;
+  function render(){
+    const box=$("#globin"); box.innerHTML=""; const g=el("div","msa");
+    const infos=[...Array(L)].map((_,c)=>colInfo(GLOB.map(r=>r[1]),c));
+    const num=el("div","r"); num.appendChild(el("span","lbl","")); for(let c=0;c<L;c++) num.appendChild(el("span","cons",(c%10===0)?String(c+1):"")); num.querySelectorAll(".cons").forEach(x=>{x.style.fontSize=".65rem";x.style.color="var(--muted)";x.style.fontWeight="400";});
+    g.appendChild(num);
+    GLOB.forEach(([nm,s])=>{ const r=el("div","r"); r.appendChild(el("span","lbl",nm));
+      [...s].forEach((ch,c)=>{ const b=el("button","c",ch); b.type="button";
+        if(ch==="-") b.classList.add("g");
+        else if(mode==="prop") b.classList.add("k-"+KIND[ch]);
+        else if(mode==="cons"){ if(infos[c].sym==="*") b.classList.add("k-"+KIND[ch]); else if(infos[c].sym===":") { b.classList.add("k-"+KIND[ch]); b.style.opacity=".6"; } else b.classList.add("plain"); }
+        else b.classList.add("plain");
+        if(sel!==null) b.classList.add(c===sel?"sel":"fade");
+        b.setAttribute("aria-label",`${nm}, column ${c+1}: ${ch==="-"?"gap":ch}`);
+        b.addEventListener("click",()=>{ sel=c; render(); });
+        r.appendChild(b); });
+      g.appendChild(r); });
+    const cr=el("div","r"); cr.appendChild(el("span","lbl","Conserved")); infos.forEach(i=>cr.appendChild(el("span","cons",i.sym))); g.appendChild(cr);
+    const br=el("div","r"); br.appendChild(el("span","lbl","")); infos.forEach(i=>{ const d=el("span","bar"); const f=el("i"); f.style.height=(i.frac*100)+"%"; d.appendChild(f); br.appendChild(d); }); g.appendChild(br);
+    box.appendChild(g);
+    const lg=$("#globLegend"); lg.innerHTML=""; if(mode!=="plain") Object.entries(KNAME).forEach(([k,v])=>{ const s=el("span"); const sw=el("i","sw k-"+k); s.append(sw,v); lg.appendChild(s); });
+    const info=$("#globInfo");
+    if(sel===null){ const star=infos.filter(i=>i.sym==="*").length, col=infos.filter(i=>i.sym===":").length;
+      info.textContent=`${L} columns: ${star} identical in all four chains (*), ${col} conservative (:). Tap a column for details.`; return; }
+    const i=infos[sel], hbbPos=[...GLOB[0][1].slice(0,sel+1)].filter(x=>x!=="-").length-1;
+    const parts=Object.entries(i.cnt).map(([k,v])=>`${k==="-"?"gap":k} × ${v}`).join(", ");
+    let t=`Column ${sel+1}${GLOB[0][1][sel]!=="-"?` (β-globin residue ${hbbPos}, mature numbering)`:""}: ${parts}. `;
+    t+= i.sym==="*" ? "Identical in all four chains. Positions conserved across paralogues that diverged hundreds of millions of years ago are usually essential for structure or function." :
+        i.sym===":" ? "Different residues, but all from the same chemical group: the property is conserved even though the residue is not." :
+        i.res.includes("-") ? "A gap: one lineage gained or lost residues here. Indels tend to fall in loops between helices, where the fold tolerates them." :
+        "No common pattern: this position tolerates change.";
+    info.textContent=t;
+  }
+  const tabs=[{name:"Colour by property",m:"prop"},{name:"Colour conserved columns only",m:"cons"},{name:"No colour",m:"plain"}];
+  const bs=tabs.map(t=>{ const b=el("button","btn",t.name); b.type="button"; b.addEventListener("click",()=>{ mode=t.m; bs.forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); render(); }); $("#colTabs").appendChild(b); return b; });
+  bs[0].click();
+})();
+
+/* ---------- 2. complexity ---------- */
+(function(){
+  const sup=n=>[...String(n)].map(c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[c]).join("");
+  function upd(){
+    const N=+$("#cN").value, Lq=+$("#cL").value; $("#cNv").textContent=N; $("#cLv").textContent=Lq;
+    const lg=N*Math.log10(Lq), e=Math.floor(lg), m=Math.pow(10,lg-e);
+    const secs=lg-9, out=$("#cOut"); out.innerHTML="";
+    const age=Math.log10(4.35e17); /* age of universe in seconds */
+    const tt = secs<0 ? "under a second" : secs<Math.log10(60) ? Math.round(Math.pow(10,secs))+" seconds" : secs<Math.log10(86400) ? (Math.pow(10,secs)/3600).toFixed(1)+" hours" : secs<Math.log10(3.15e7*100) ? (Math.pow(10,secs)/3.15e7).toFixed(1)+" years" : secs<age ? `about 10${sup(Math.floor(secs-Math.log10(3.15e7)))} years` : `${Math.round(Math.pow(10,secs-age)).toLocaleString("en")} times the age of the universe`;
+    for(const [k,v] of [["Cells",`≈ ${m.toFixed(1)} × 10${sup(e)}`],["Time at 10⁹ cells per second",tt]]){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",v)); out.appendChild(d); }
+  }
+  ["#cN","#cL"].forEach(s=>$(s).addEventListener("input",upd)); upd();
+})();
+
+/* ---------- progressive alignment core ---------- */
+const SC={match:1,mis:-1,gap:-2};
+const pairS=(x,y)=> x==="-"&&y==="-"?0 : (x==="-"||y==="-")?SC.gap : (x===y?SC.match:SC.mis);
+function nw(a,b){
+  const n=a.length,m=b.length,S=[];
+  for(let i=0;i<=n;i++){ S.push(new Array(m+1).fill(0)); S[i][0]=i*SC.gap; } for(let j=0;j<=m;j++) S[0][j]=j*SC.gap;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) S[i][j]=Math.max(S[i-1][j-1]+pairS(a[i-1],b[j-1]),S[i-1][j]+SC.gap,S[i][j-1]+SC.gap);
+  let i=n,j=m,A="",B="";
+  while(i>0||j>0){ if(i>0&&j>0&&S[i][j]===S[i-1][j-1]+pairS(a[i-1],b[j-1])){A=a[i-1]+A;B=b[j-1]+B;i--;j--;} else if(i>0&&S[i][j]===S[i-1][j]+SC.gap){A=a[i-1]+A;B="-"+B;i--;} else {A="-"+A;B=b[j-1]+B;j--;} }
+  return {A,B,score:S[n][m]};
+}
+function pdist(a,b){ const r=nw(a,b); let mt=0; for(let k=0;k<r.A.length;k++) if(r.A[k]===r.B[k]) mt++; return {d:1-mt/r.A.length, r}; }
+/* profile-profile alignment: groups are arrays of equal-length rows */
+function alignProfiles(G1,G2){
+  const n=G1[0].length,m=G2[0].length, col=(G,i)=>G.map(r=>r[i]), gapCol=G=>G.map(()=>"-");
+  const cs=(c1,c2)=>{ let s=0; for(const x of c1) for(const y of c2) s+=pairS(x,y); return s/(c1.length*c2.length); };
+  const S=[],eps=1e-9;
+  for(let i=0;i<=n;i++) S.push(new Array(m+1).fill(0));
+  for(let i=1;i<=n;i++) S[i][0]=S[i-1][0]+cs(col(G1,i-1),gapCol(G2));
+  for(let j=1;j<=m;j++) S[0][j]=S[0][j-1]+cs(gapCol(G1),col(G2,j-1));
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) S[i][j]=Math.max(S[i-1][j-1]+cs(col(G1,i-1),col(G2,j-1)), S[i-1][j]+cs(col(G1,i-1),gapCol(G2)), S[i][j-1]+cs(gapCol(G1),col(G2,j-1)));
+  let i=n,j=m; const A=G1.map(()=>""), B=G2.map(()=>"");
+  while(i>0||j>0){
+    if(i>0&&j>0&&Math.abs(S[i][j]-(S[i-1][j-1]+cs(col(G1,i-1),col(G2,j-1))))<eps){ G1.forEach((r,k)=>A[k]=r[i-1]+A[k]); G2.forEach((r,k)=>B[k]=r[j-1]+B[k]); i--; j--; }
+    else if(i>0&&Math.abs(S[i][j]-(S[i-1][j]+cs(col(G1,i-1),gapCol(G2))))<eps){ G1.forEach((r,k)=>A[k]=r[i-1]+A[k]); B.forEach((r,k)=>B[k]="-"+B[k]); i--; }
+    else { A.forEach((r,k)=>A[k]="-"+A[k]); G2.forEach((r,k)=>B[k]=r[j-1]+B[k]); j--; }
+  }
+  return [...A,...B];
+}
+function spScore(rows){ let s=0; for(let c=0;c<rows[0].length;c++) for(let i=0;i<rows.length;i++) for(let j=i+1;j<rows.length;j++) s+=pairS(rows[i][c],rows[j][c]); return s; }
+function upgma(names,D){
+  let clusters=names.map((n,i)=>({id:i,members:[i],h:0,node:{leaf:i,h:0}}));
+  const dist=(a,b)=>{ let s=0; a.members.forEach(x=>b.members.forEach(y=>s+=D[x][y])); return s/(a.members.length*b.members.length); };
+  const merges=[];
+  while(clusters.length>1){
+    let best=null;
+    for(let i=0;i<clusters.length;i++) for(let j=i+1;j<clusters.length;j++){ const d=dist(clusters[i],clusters[j]); if(!best||d<best.d-1e-12) best={i,j,d}; }
+    const a=clusters[best.i], b=clusters[best.j], h=best.d/2;
+    const nc={members:[...a.members,...b.members],node:{l:a.node,r:b.node,h}};
+    merges.push({a:a.members,b:b.members,d:best.d});
+    clusters=clusters.filter((_,k)=>k!==best.i&&k!==best.j); clusters.push(nc);
+  }
+  return {root:clusters[0].node,merges};
+}
+function progressive(seqs,order){ /* order: list of [membersA, membersB] */
+  const groups=new Map(); seqs.forEach((s,i)=>groups.set(String(i),{members:[i],rows:[s]}));
+  const key=m=>[...m].sort((x,y)=>x-y).join(",");
+  const steps=[];
+  for(const [ma,mb] of order){
+    const A=groups.get(key(ma)), B=groups.get(key(mb));
+    const rows=alignProfiles(A.rows,B.rows), members=[...A.members,...B.members];
+    groups.delete(key(ma)); groups.delete(key(mb)); groups.set(key(members),{members,rows});
+    steps.push({a:A,b:B,members,rows});
+  }
+  return steps;
+}
+
+/* ---------- rendering helpers ---------- */
+function dnaMSA(rows,labels,opts={}){
+  const g=el("div","msa");
+  rows.forEach((s,i)=>{ const r=el("div","r"); r.appendChild(el("span","lbl",labels[i]));
+    [...s].forEach(ch=>{ const c=el("span","c"+(ch==="-"?" g":""),ch); if(ch!=="-"){ c.style.background=`var(--${ch})`; if(ch==="G") c.style.color="#1b1400"; } r.appendChild(c); });
+    g.appendChild(r); });
+  if(opts.cons!==false){ const cr=el("div","r"); cr.appendChild(el("span","lbl","")); for(let c=0;c<rows[0].length;c++){ const col=rows.map(r=>r[c]); cr.appendChild(el("span","cons",col.every(x=>x!=="-"&&x===col[0])?"*":"")); } g.appendChild(cr); }
+  return g;
+}
+function treeSVG(root,names){
+  const leaves=[]; (function walk(n){ if(n.leaf!==undefined) leaves.push(n.leaf); else { walk(n.l); walk(n.r); } })(root);
+  const W=420, rowH=34, H=leaves.length*rowH+20, maxH=root.h||1, x=h=>30+ (1-h/maxH)*(W-150), ySet={};
+  leaves.forEach((l,i)=>ySet[l]=20+i*rowH);
+  const css=getComputedStyle(document.documentElement), ink=css.getPropertyValue("--ink").trim(), mut=css.getPropertyValue("--muted").trim();
+  let lines="";
+  function pos(n){ if(n.leaf!==undefined) return {x:x(0),y:ySet[n.leaf]}; const a=pos(n.l), b=pos(n.r), px=x(n.h), py=(a.y+b.y)/2;
+    lines+=`<path d="M${a.x},${a.y} H${px} V${b.y} H${b.x}" fill="none" stroke="${ink}" stroke-width="2"/><circle cx="${px}" cy="${py}" r="3" fill="${ink}"/><text x="${px-4}" y="${py-6}" font-size="11" fill="${mut}" text-anchor="end">${(n.h*2).toFixed(2)}</text>`;
+    return {x:px,y:py}; }
+  pos(root);
+  leaves.forEach(l=>{ lines+=`<text x="${x(0)+8}" y="${ySet[l]+4}" font-size="13" fill="${ink}">${names[l]}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="Guide tree">${lines}</svg>`;
+}
+
+/* ---------- 3 & 4. progressive alignment UI ---------- */
+const PG={seqs:[],names:[],D:null,tree:null,steps:[],stage:0,merge:0};
+function loadPG(seqs){
+  PG.seqs=seqs; PG.names=seqs.map((_,i)=>"Seq "+(i+1));
+  PG.D=seqs.map((a,i)=>seqs.map((b,j)=>i===j?0:pdist(a,b).d));
+  PG.tree=upgma(PG.names,PG.D);
+  PG.steps=progressive(seqs,PG.tree.merges.map(m=>[m.a,m.b]));
+  PG.merge=0; renderPG(); renderOrder();
+}
+const STAGES=["1 Pairwise distances","2 Guide tree","3 Merge","4 Final MSA"];
+function renderPG(){
+  [...$("#pgSteps").children].forEach((b,i)=>b.classList.toggle("sel",i===PG.stage));
+  const st=$("#pgStage"); st.innerHTML="";
+  const n=PG.seqs.length;
+  if(PG.stage===0){
+    st.appendChild(el("p","","Every pair is aligned with Needleman-Wunsch (+1 / −1 / −2). The distance is the fraction of alignment columns that are not identical. The smallest distance is outlined: that pair will be joined first."));
+    const wrap=el("div"); wrap.style.overflowX="auto"; const t=el("table","mx"); const hr=el("tr"); hr.appendChild(el("th")); PG.names.forEach(nm=>hr.appendChild(el("th","",nm))); t.appendChild(hr);
+    let min=Infinity; for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) min=Math.min(min,PG.D[i][j]);
+    PG.D.forEach((row,i)=>{ const tr=el("tr"); tr.appendChild(el("th","",PG.names[i]));
+      row.forEach((d,j)=>{ const td=el("td","",i===j?"–":d.toFixed(2)); if(i!==j){ td.style.background=`color-mix(in srgb, var(--C) ${Math.round((1-d)*70)}%, var(--surface))`; if(Math.abs(d-min)<1e-9) td.classList.add("min"); } else td.style.background="var(--soft)"; tr.appendChild(td); });
+      t.appendChild(tr); });
+    wrap.appendChild(t); st.appendChild(wrap);
+    const box=el("div","seqbox"); box.style.marginTop="12px"; box.appendChild(dnaMSA(PG.seqs,PG.names,{cons:false})); st.appendChild(el("p","hint","The input sequences, unaligned:")); st.appendChild(box);
+  }
+  if(PG.stage===1){
+    st.appendChild(el("p","","The guide tree is built here with UPGMA: repeatedly join the two closest clusters and average their distances to everything else. (Clustal uses the related neighbour-joining method.) Node labels show the distance at which each join happened. The tree is only a guide for the merge order, not a reliable phylogeny."));
+    const d=el("div"); d.innerHTML=treeSVG(PG.tree.root,PG.names); st.appendChild(d);
+    const ol=el("ol"); PG.tree.merges.forEach(m=>{ const li=el("li"); li.append("Join "); li.appendChild(el("span","grp",m.a.map(x=>x+1).join("+"))); li.append(" with "); li.appendChild(el("span","grp",m.b.map(x=>x+1).join("+"))); li.append(` at distance ${m.d.toFixed(2)}`); ol.appendChild(li); }); st.appendChild(ol);
+  }
+  if(PG.stage===2){
+    const k=PG.merge, s=PG.steps[k];
+    st.appendChild(el("p","",`Merge ${k+1} of ${PG.steps.length}. Two groups are aligned as profiles: each column scores the average over all pairs of rows, and gaps already inside a group move together as a block.`));
+    const tabs=el("div","tabs"); PG.steps.forEach((_,i)=>{ const b=el("button","btn"+(i===k?" sel":""),"Merge "+(i+1)); b.type="button"; b.addEventListener("click",()=>{ PG.merge=i; renderPG(); }); tabs.appendChild(b); }); st.appendChild(tabs);
+    const g=el("div","grid2"); g.style.marginTop="12px";
+    const mk=(title,rows,members)=>{ const d=el("div"); d.appendChild(el("h3","",title)); const b=el("div","seqbox"); b.appendChild(dnaMSA(rows,members.map(x=>PG.names[x]),{cons:false})); d.appendChild(b); return d; };
+    g.appendChild(mk("Group A",s.a.rows,s.a.members)); g.appendChild(mk("Group B",s.b.rows,s.b.members)); st.appendChild(g);
+    st.appendChild(el("h3","","Merged")).style.marginTop="10px";
+    const b=el("div","seqbox"); b.appendChild(dnaMSA(s.rows,s.members.map(x=>PG.names[x]))); st.appendChild(b);
+  }
+  if(PG.stage===3){
+    const fin=PG.steps[PG.steps.length-1], order=[...fin.members], idx=order.map((_,i)=>i).sort((x,y)=>order[x]-order[y]);
+    const rows=idx.map(i=>fin.rows[i]), names=idx.map(i=>PG.names[order[i]]);
+    st.appendChild(el("p","",`Final alignment of ${n} sequences, ${rows[0].length} columns. Stars mark columns identical in all sequences. SP score: ${spScore(rows)}.`));
+    const b=el("div","seqbox"); b.appendChild(dnaMSA(rows,names)); st.appendChild(b);
+  }
+}
+function renderOrder(){
+  const fin=PG.steps[PG.steps.length-1];
+  const sortRows=f=>{ const o=f.members; return o.map((m,i)=>[m,f.rows[i]]).sort((a,b)=>a[0]-b[0]); };
+  const treeRows=sortRows(fin);
+  const inOrder=[]; let acc=[0]; for(let i=1;i<PG.seqs.length;i++){ inOrder.push([acc,[i]]); acc=[...acc,i]; }
+  const inSteps=progressive(PG.seqs,inOrder), inRows=sortRows(inSteps[inSteps.length-1]);
+  const show=(box,stats,pairs)=>{ const b=$(box); b.innerHTML=""; b.appendChild(dnaMSA(pairs.map(p=>p[1]),pairs.map(p=>PG.names[p[0]]))); const s=$(stats); s.innerHTML=""; const sc=spScore(pairs.map(p=>p[1])); const d=el("div"); d.append("SP score: "); d.appendChild(el("b","",String(sc))); s.appendChild(d); return sc; };
+  const a=show("#ordTree","#ordTreeS",treeRows), b=show("#ordIn","#ordInS",inRows);
+  $("#ordText").textContent = a===b ? "Here both orders give the same score, but that is not guaranteed. Try your own sequences in section 3, especially ones with indels near each other." : `The orders give different results (${a} versus ${b}). ${a>b?"Merging the closest sequences first gives the better alignment here.":"Here the input order happens to score better: the guide tree is a heuristic, not a guarantee."}`;
+}
+(function(){
+  STAGES.forEach((s,i)=>{ const b=el("button","btn",s); b.type="button"; b.addEventListener("click",()=>{ PG.stage=i; renderPG(); }); $("#pgSteps").appendChild(b); });
+  loadPG(["GGCACTTTGTTA","GCACTTGTTA","GCGCACTGTTA","GCGACTTGTTA","GCGCACTTATTA"]);
+  $("#ownLoad").addEventListener("click",()=>{
+    const seqs=$("#own").value.toUpperCase().split(/\s*\n\s*/).map(s=>s.replace(/\s/g,"")).filter(Boolean);
+    if(seqs.length<3||seqs.length>6||!seqs.every(s=>/^[ACGT]{2,20}$/.test(s))){ $("#ownMsg").textContent="Enter 3 to 6 sequences, one per line, each 2 to 20 bases of A, C, G and T."; return; }
+    $("#ownMsg").textContent=""; PG.stage=0; loadPG(seqs);
+  });
+  if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",renderPG);
+})();
+
+/* ---------- 5. exercises ---------- */
+(function(){
+  const root=$("#exercises");
+  const EX=[
+    {q:"Calculate the sum-of-pairs score of this single column (match +1, mismatch −1, base against gap −2, gap against gap 0).", rows:["A","A","G","-"], a:null, h:null},
+    {q:"Same scoring. What is the SP score of this column?", rows:["C","C","C","C"], a:null, h:null},
+    {q:"In this alignment, which column number is identical in all four sequences and closest to the right end?", rows:["ACGTAC","ACCTGC","AGGTAC","ACGTTA"], a:4, h:"Columns 1 (A) and 4 (T) are identical in all rows. The one closest to the right end is column 4."}
+  ];
+  EX.forEach((ex,i)=>{
+    if(ex.a===null){ const col=ex.rows; let s=0; const parts=[];
+      for(let x=0;x<col.length;x++) for(let y=x+1;y<col.length;y++){ const v=pairS(col[x],col[y]); s+=v; parts.push(`${col[x]}/${col[y]} ${v>0?"+":""}${v}`); }
+      ex.a=s; ex.h=`${col.length} rows give ${col.length*(col.length-1)/2} pairs: ${parts.join(", ")} → total ${s>0?"+":""}${s}.`; }
+    const d=el("div","ex"); d.appendChild(el("h3","",`Exercise ${i+1}`)); d.appendChild(el("p","",ex.q));
+    const b=el("div","seqbox"); b.appendChild(dnaMSA(ex.rows,ex.rows.map((_,k)=>"Seq "+(k+1)),{cons:false})); d.appendChild(b);
+    const row=el("div","btns"), inp=el("input"); inp.type="number"; inp.setAttribute("aria-label",`Answer to exercise ${i+1}`);
+    const chk=el("button","btn solid","Check"), show=el("button","btn","Show working"); chk.type=show.type="button";
+    const msg=el("div","msg"); msg.setAttribute("role","status");
+    chk.addEventListener("click",()=>{ if(inp.value===""){ msg.className="msg bad"; msg.textContent="Enter a number first."; return; }
+      const ok=+inp.value===ex.a; msg.className="msg "+(ok?"ok":"bad"); msg.textContent=ok?"Correct.":"Not yet. Count every pair of rows exactly once."; });
+    show.addEventListener("click",()=>{ msg.className="msg"; msg.textContent=ex.h; });
+    row.append(inp,chk,show); d.append(row,msg); root.appendChild(d);
+  });
+})();
+
+/* ---------- 6. quiz ---------- */
+(function(){
+  const Q=[
+    {q:"Why is exact dynamic programming not used for MSA of many sequences?", o:["It gives wrong answers","Its cost grows roughly as L to the power N, which quickly becomes impossible","It cannot handle gaps","It only works for proteins"], a:1, w:"Each extra sequence adds a dimension to the matrix. Ten sequences of 300 residues would need about 300¹⁰ cells."},
+    {q:"What is the first step of progressive alignment?", o:["Build the final MSA","Compute distances between every pair of sequences","Draw a phylogenetic tree from the literature","Remove all gaps"], a:1, w:"Pairwise alignments give the distance matrix from which the guide tree is built."},
+    {q:"What does the guide tree decide?", o:["The true evolutionary history","The order in which sequences and groups are merged","The scoring matrix","The length of the final alignment"], a:1, w:"The guide tree is a merge order. It should not be read as a careful phylogeny."},
+    {q:"What does \"once a gap, always a gap\" mean?", o:["Gaps are forbidden after the first merge","Gaps placed when aligning early groups are kept and never moved in later merges","Every column must contain a gap","Gaps are always placed at the ends"], a:1, w:"Progressive methods freeze earlier alignments, so early mistakes propagate. Refinement steps in modern tools try to correct this."},
+    {q:"In a Clustal-style conservation line, what does a colon (:) below a column mean?", o:["The column is identical","Residues differ but all belong to the same chemical group","The column contains only gaps","The column is unaligned"], a:1, w:"A colon marks a conservative column: the residue changes, its physicochemical property does not."},
+    {q:"A column contains the residue W in every sequence of a large protein family. What is the most reasonable interpretation?", o:["The position is probably unimportant","The position is probably important for structure or function","The sequences are identical","The alignment must be wrong"], a:1, w:"Strict conservation over long evolutionary time suggests selection against change, which usually means the residue matters."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true); bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++; big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You have completed the Alignment Lab." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      }); opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ location.hash="s6"; location.reload(); });
+  const sb=el("div","score"); sb.append(big,sub,retry); root.appendChild(sb);
+})();
+</script>
+</body>
+</html>

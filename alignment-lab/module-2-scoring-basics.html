@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alignment Lab · Module 2: Scoring basics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16212C; --muted:#56646F; --rule:#CBD5DE;
+  --A:#23905A; --C:#2C67D1; --G:#C68700; --T:#CC3A32; --gapc:#8F9BA7;
+  --accent:#2C67D1; --ok:#1F8A52; --bad:#C2352E; --soft:#E6ECF1; --hl:#FFF1C2;
+  --sans:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+    --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+    --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161D; --surface:#17212B; --ink:#E6EDF3; --muted:#9EAFBE; --rule:#2C3B49;
+  --A:#43B977; --C:#6D9BF0; --G:#E5B23A; --T:#EE6A5F; --gapc:#6F7D8A;
+  --accent:#6D9BF0; --ok:#43B977; --bad:#EE6A5F; --soft:#1E2A36; --hl:#4A3F17;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.45rem,3.4vw,2rem);font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.6em 0;max-width:70ch}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* series bar */
+.series{border-bottom:1px solid var(--rule);background:var(--surface)}
+.series ol{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;font-size:.85rem}
+.series li{white-space:nowrap;padding:4px 10px;border-radius:999px;color:var(--muted);border:1px solid transparent}
+.series li.on{color:var(--ink);border-color:var(--ink);font-weight:700}
+
+/* hero */
+.hero{padding:44px 0 28px}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.hero-aln{margin-top:26px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 16px 12px}
+.hero-aln .cap{font-size:.88rem;color:var(--muted);margin-top:8px}
+
+/* sequence tiles */
+.seqbox{overflow-x:auto;padding:4px 0 8px}
+.row{display:flex;gap:2px;align-items:center;min-width:max-content}
+.row .lbl{font-size:.8rem;color:var(--muted);width:78px;flex:none;padding-right:8px;text-align:right}
+.t{font-family:var(--mono);font-weight:600;width:24px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:.95rem;border:0;padding:0;color:#fff;flex:none}
+.t.A{background:var(--A)} .t.C{background:var(--C)} .t.G{background:var(--G);color:#1b1400} .t.T{background:var(--T)}
+.t.gap{background:transparent;color:var(--gapc);border:1.5px dashed var(--gapc)}
+.t.pad{background:transparent;color:var(--gapc);opacity:.55}
+.t.aa{background:var(--soft);color:var(--ink)}
+.t.aa.diff{background:var(--hl);outline:2px solid var(--G)}
+.t.aa.stop{background:var(--ink);color:var(--bg)}
+.mid .m{font-family:var(--mono);width:24px;text-align:center;flex:none;color:var(--muted);font-size:.9rem;height:18px;line-height:18px}
+.mid .m.x{color:var(--bad);font-weight:700}
+.t.flag{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--ink)}
+button.t:hover{filter:brightness(1.12)}
+.ruler{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ruler span{width:24px;flex:none;text-align:center}
+
+/* sections */
+section.step{padding:38px 0;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+.stepnum{font-family:var(--display);font-weight:700;font-size:1rem;color:var(--bg);background:var(--ink);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;flex:none;transform:translateY(-3px)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px;margin-top:16px}
+.note{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:14px 0;max-width:72ch}
+.note.key{border-color:var(--G)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btn{border:1.5px solid var(--ink);background:transparent;color:var(--ink);padding:7px 14px;border-radius:8px;font-weight:700;font-size:.92rem}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.95rem;margin-top:10px}
+.stats b{font-family:var(--mono);font-size:1.05rem}
+.big{font-family:var(--display);font-size:1.9rem;font-weight:700;line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.hint{font-size:.88rem;color:var(--muted)}
+.msg{margin-top:10px;font-weight:700;min-height:1.5em}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+input[type=text]{width:100%;font-family:var(--mono);font-size:.95rem;padding:8px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);text-transform:uppercase}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.log{font-size:.9rem;margin:8px 0 0;padding-left:20px}
+.log li{margin:2px 0}
+canvas{max-width:100%;display:block;background:var(--bg);border-radius:8px}
+.dpwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:760px){.dpwrap{grid-template-columns:1fr}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* quiz */
+.q{padding:16px 0;border-bottom:1px solid var(--rule)}
+.q:last-child{border-bottom:0}
+.q h3{font-family:var(--sans);font-size:1rem;margin-bottom:8px}
+.opts{display:grid;gap:6px}
+.opt{text-align:left;border:1.5px solid var(--rule);background:var(--bg);color:var(--ink);padding:9px 12px;border-radius:8px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.why{font-size:.92rem;color:var(--muted);margin-top:8px}
+.score{display:flex;align-items:center;gap:16px;margin-top:14px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--rule)}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 3px var(--bg),0 0 0 7px var(--G)}}
+}
+
+.cands{width:100%;border-collapse:collapse;font-size:.95rem}
+.cands td,.cands th{padding:8px 6px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:middle}
+.cands th{font-weight:700;color:var(--muted);font-size:.85rem}
+.cands tr.win td{background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.cands .sc{font-family:var(--mono);font-weight:600;font-size:1.05rem;white-space:nowrap}
+.mini .t{width:20px;height:24px;font-size:.85rem}
+.mini .mid .m{width:20px}
+.sl{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+@media (max-width:640px){.sl{grid-template-columns:1fr}}
+.sl label{font-size:.9rem;color:var(--muted);display:flex;justify-content:space-between}
+.sl label b{font-family:var(--mono);color:var(--ink)}
+input[type=number]{width:110px;font-family:var(--mono);font-size:1rem;padding:7px 10px;border:1.5px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink)}
+.ex{padding:14px 0;border-bottom:1px solid var(--rule)}
+.ex:last-child{border-bottom:0}
+.scheme{font-size:.9rem;color:var(--muted);margin:4px 0 8px}
+.series li a{color:inherit;text-decoration:none;display:block}
+.series li:not(.on):hover{color:var(--ink);border-color:var(--rule)}
+</style>
+</head>
+<body>
+
+<nav class="series" aria-label="Alignment Lab modules">
+  <div class="wrap"><ol>
+    <li><a href="index.html">Alignment Lab</a></li>
+    <li><a href="module-1-why-align.html">1 Why align?</a></li>
+    <li class="on" aria-current="page">2 Scoring basics</li>
+    <li><a href="module-3-needleman-wunsch.html">3 Needleman-Wunsch</a></li>
+    <li><a href="module-4-smith-waterman.html">4 Smith-Waterman</a></li>
+    <li><a href="module-5-scoring-matrices.html">5 Scoring matrices</a></li>
+    <li><a href="module-6-blast.html">6 BLAST</a></li>
+    <li><a href="module-7-multiple-alignment.html">7 Multiple alignment</a></li>
+  </ol></div>
+</nav>
+
+<header class="hero wrap">
+  <h1>How do we know which alignment is best?</h1>
+  <p class="lead">Every pair of sequences can be aligned in thousands of ways. A scoring scheme turns each alignment into a single number, so the algorithms in the next modules can search for the highest one. Change the scheme and the "best" alignment can change with it.</p>
+  <div class="hero-aln">
+    <div class="grid2">
+      <div><div class="seqbox mini" id="heroA"></div><div class="hint" id="heroAs"></div></div>
+      <div><div class="seqbox mini" id="heroB"></div><div class="hint" id="heroBs"></div></div>
+    </div>
+    <div class="cap">The same two sequences, aligned two ways. Both have 8 matches and 2 gap positions. Is one gap of length 2 better than two gaps of length 1? Only the scoring scheme can decide.</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <div class="stephead"><span class="stepnum">1</span><h2>The three ingredients of a score</h2></div>
+  <p>An alignment score is the sum of the scores of its columns. Each column is one of three things:</p>
+  <p><b>A match</b> (same base in both sequences) receives a positive score, because related sequences share bases more often than random sequences do. <b>A mismatch</b> receives a negative score. In DNA it is common to penalise transversions (purine ↔ pyrimidine) more than transitions (A↔G, C↔T), because transitions occur more often in real genomes. <b>A gap</b> receives a negative score that depends on its length.</p>
+  <div class="note key">Score = Σ match scores + Σ mismatch scores + Σ gap penalties. The algorithm does not "understand" biology: it only maximises this sum. Biology enters through the numbers you choose.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <div class="stephead"><span class="stepnum">2</span><h2>Build a scoring scheme and watch the ranking change</h2></div>
+  <p>Below are four candidate alignments of the same pair, <span style="font-family:var(--mono)">GATTACAGCT</span> and <span style="font-family:var(--mono)">GATCAGCT</span>. Move the sliders or pick a preset. The table re-scores every candidate and highlights the winner. The last row shows the optimal alignment under your scheme, found by an algorithm you will build in Module 3.</p>
+  <div class="panel">
+    <div class="tabs" id="presets" role="group" aria-label="Scoring presets"></div>
+    <div class="sl" style="margin-top:12px">
+      <div><label for="sMatch">Match <b id="vMatch"></b></label><input type="range" id="sMatch" min="1" max="5"></div>
+      <div><label for="sTs">Transition mismatch (A↔G, C↔T) <b id="vTs"></b></label><input type="range" id="sTs" min="-6" max="0"></div>
+      <div><label for="sTv">Transversion mismatch <b id="vTv"></b></label><input type="range" id="sTv" min="-6" max="0"></div>
+      <div><label for="sOpen">Gap opening (first gap position) <b id="vOpen"></b></label><input type="range" id="sOpen" min="-12" max="-1"></div>
+      <div><label for="sExt">Gap extension (each further position) <b id="vExt"></b></label><input type="range" id="sExt" min="-6" max="0"></div>
+      <div style="display:flex;align-items:end"><label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;color:var(--ink)"><input type="checkbox" id="sFree"> End gaps are free</label></div>
+    </div>
+    <p class="hint" id="schemeText"></p>
+    <div style="overflow-x:auto;margin-top:6px">
+      <table class="cands"><thead><tr><th>Candidate</th><th>Alignment</th><th>Score</th></tr></thead><tbody id="candBody"></tbody></table>
+    </div>
+  </div>
+  <div class="note">Try the presets in order. With <b>Linear gaps</b>, candidates A and B tie. With <b>Affine gaps</b>, candidate A wins clearly because it opens only one gap. With <b>End gaps free</b>, candidate D gains the most: its two gaps sit at the end, so they cost nothing and its score jumps from −2 to +4.</div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <div class="stephead"><span class="stepnum">3</span><h2>Linear versus affine gap penalties</h2></div>
+  <p>A <b>linear</b> gap penalty charges the same amount for every gap position, so one gap of length 3 costs the same as three separate gaps of length 1. An <b>affine</b> gap penalty charges a large cost to open a gap and a smaller cost to extend it. This matches biology: a single insertion or deletion event often adds or removes several bases at once, so one long gap is more plausible than many short ones.</p>
+  <div class="panel">
+    <div class="dpwrap">
+      <canvas id="gapChart" width="560" height="320" aria-label="Gap cost versus gap length"></canvas>
+      <div>
+        <p class="hint">The chart uses the opening and extension values from section 2.</p>
+        <div class="legend"><span><i class="sw" style="background:var(--T)"></i>linear: length × opening</span><span><i class="sw" style="background:var(--C)"></i>affine: opening + (length − 1) × extension</span></div>
+        <p id="gapText" style="margin-top:12px"></p>
+      </div>
+    </div>
+  </div>
+  <div class="note key">Conventions differ between programs. Some define the cost of a gap of length L as open + L × extend, others as open + (L − 1) × extend. Always check the documentation before comparing scores between tools.</div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <div class="stephead"><span class="stepnum">4</span><h2>End gaps: global, semi-global and local alignment</h2></div>
+  <p>Suppose you sequenced a short fragment and want to know where it sits in a longer gene. A <b>global</b> alignment forces both sequences to be aligned from first base to last, so the long overhangs are paid for as gaps. If end gaps are free, the fragment can sit anywhere inside the gene without penalty. This is called <b>semi-global</b> (or "glocal") alignment.</p>
+  <div class="panel">
+    <div class="tabs" id="endTabs" role="group" aria-label="End gap mode"></div>
+    <div class="seqbox mini" id="endAln" style="margin-top:12px"></div>
+    <div class="stats" id="endStats"></div>
+    <p class="hint">Scoring here: match +1, mismatch −1, gap opening −3, gap extension −1. Fragment: <i>HBB</i> c.16–27. Gene: <i>HBB</i> c.1–45.</p>
+  </div>
+  <div class="note key"><b>Three questions, three types of alignment.</b><br>
+  Are these two sequences similar along their whole length? → <b>Global</b> (Needleman-Wunsch, Module 3).<br>
+  Where does this short sequence sit inside a longer one? → <b>Semi-global</b> (free end gaps).<br>
+  Do these two sequences share any similar region, even if the rest is unrelated? → <b>Local</b> (Smith-Waterman, Module 4).</div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <div class="stephead"><span class="stepnum">5</span><h2>Exercises: score by hand</h2></div>
+  <p>Calculate each score with the scheme shown, then check your answer. Work column by column and write the score of each column under it, as you would in an exam.</p>
+  <div class="panel" id="exercises"></div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <div class="stephead"><span class="stepnum">6</span><h2>Check your understanding</h2></div>
+  <div class="panel" id="quiz"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Alignment Lab · Module 2 of 7 · Bioinformatics, 4th-year Biotechnology · Sequences: <i>HBB</i> coding sequence (c.1 = A of ATG).</div></footer>
+
+<script>
+"use strict";
+const HBB = "ATGGTGCACCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAAC";
+const PUR = new Set(["A","G"]);
+const $ = s => document.querySelector(s);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+
+/* ---------- scoring ---------- */
+const S = {match:1, ts:-1, tv:-1, open:-2, ext:-2, free:false};
+const sub = (x,y,s) => x===y ? s.match : (PUR.has(x)===PUR.has(y) ? s.ts : s.tv);
+function scoreAln(A,B,s){
+  const first=r=>r.search(/[^-]/), last=r=>{for(let i=r.length-1;i>=0;i--) if(r[i]!=="-") return i; return -1;};
+  const fA=first(A), lA=last(A), fB=first(B), lB=last(B);
+  let total=0, mt=0, mm=0, gp=0, opens=0; const cols=[];
+  for(let i=0;i<A.length;i++){
+    const x=A[i], y=B[i];
+    if(x!=="-"&&y!=="-"){ const v=sub(x,y,s); total+=v; cols.push(v); x===y?mt++:mm++; continue; }
+    gp++;
+    const row = x==="-" ? A : B, f = x==="-"?fA:fB, l = x==="-"?lA:lB;
+    const isEnd = i<f || i>l;
+    if(s.free && isEnd){ cols.push(0); continue; }
+    const isOpen = i===0 || row[i-1]!=="-";
+    const v = isOpen ? s.open : s.ext; if(isOpen) opens++;
+    total+=v; cols.push(v);
+  }
+  return {score:total, mt, mm, gp, opens, cols};
+}
+/* Gotoh: global alignment with affine gaps, optional free end gaps */
+function gotoh(a,b,s){
+  const n=a.length,m=b.length,NEG=-1e9,o=s.open,e=s.ext;
+  const mk=()=>Array.from({length:n+1},()=>new Array(m+1).fill(NEG));
+  const M=mk(),X=mk(),Y=mk(); M[0][0]=0;
+  for(let i=1;i<=n;i++) X[i][0]= s.free?0:o+(i-1)*e;
+  for(let j=1;j<=m;j++) Y[0][j]= s.free?0:o+(j-1)*e;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    M[i][j]=sub(a[i-1],b[j-1],s)+Math.max(M[i-1][j-1],X[i-1][j-1],Y[i-1][j-1]);
+    X[i][j]=Math.max(M[i-1][j]+o,X[i-1][j]+e,Y[i-1][j]+o);
+    Y[i][j]=Math.max(M[i][j-1]+o,Y[i][j-1]+e,X[i][j-1]+o);
+  }
+  const cands=[];
+  const push=(i,j)=>{ cands.push([M[i][j],i,j,"M"],[X[i][j],i,j,"X"],[Y[i][j],i,j,"Y"]); };
+  if(s.free){ for(let j=0;j<=m;j++) push(n,j); for(let i=0;i<n;i++) push(i,m); } else push(n,m);
+  let best=cands[0]; for(const c of cands) if(c[0]>best[0]) best=c;
+  let [score,i,j,st]=best;
+  let tA="",tB="";
+  if(i<n){ tA=a.slice(i); tB="-".repeat(n-i); }
+  if(j<m){ tA="-".repeat(m-j); tB=b.slice(j); }
+  let A="",B="";
+  while(i>0&&j>0){
+    if(st==="M"){ const v=M[i][j]-sub(a[i-1],b[j-1],s); A=a[i-1]+A; B=b[j-1]+B;
+      st = M[i-1][j-1]===v?"M":(X[i-1][j-1]===v?"X":"Y"); i--; j--; }
+    else if(st==="X"){ const v=X[i][j]; A=a[i-1]+A; B="-"+B;
+      st = M[i-1][j]+o===v?"M":(X[i-1][j]+e===v?"X":"Y"); i--; }
+    else { const v=Y[i][j]; A="-"+A; B=b[j-1]+B;
+      st = M[i][j-1]+o===v?"M":(Y[i][j-1]+e===v?"Y":"X"); j--; }
+  }
+  if(i>0){ A=a.slice(0,i)+A; B="-".repeat(i)+B; }
+  if(j>0){ A="-".repeat(j)+A; B=b.slice(0,j)+B; }
+  return {A:A+tA, B:B+tB, score};
+}
+
+/* ---------- rendering ---------- */
+function alignRows(A,B,labels,opts={}){
+  const frag=document.createDocumentFragment();
+  const ra=el("div","row"), mid=el("div","row mid"), rb=el("div","row");
+  ra.appendChild(el("span","lbl",labels[0])); mid.appendChild(el("span","lbl","")); rb.appendChild(el("span","lbl",labels[1]));
+  if(opts.lblw){ [ra,mid,rb].forEach(r=>r.firstChild.style.width=opts.lblw); }
+  for(let i=0;i<A.length;i++){
+    const x=A[i], y=B[i];
+    ra.appendChild(el("span","t "+(x==="-"?"gap":x),x)); rb.appendChild(el("span","t "+(y==="-"?"gap":y),y));
+    let sym=" ",cls="m";
+    if(opts.cols){ sym=(opts.cols[i]>0?"+":"")+opts.cols[i]; cls="m"+(opts.cols[i]<0?" x":""); }
+    else if(x!=="-"&&y!=="-"){ if(x===y) sym="|"; else {sym="✕"; cls="m x";} }
+    const mEl=el("span",cls,sym); if(opts.cols) mEl.style.fontSize=".72rem"; mid.appendChild(mEl);
+  }
+  frag.append(ra,mid,rb); return frag;
+}
+function statsLine(target,items){
+  target.innerHTML="";
+  for(const [k,v] of items){ const d=el("div"); d.append(k+": "); d.appendChild(el("b","",String(v))); target.appendChild(d); }
+}
+function makeTabs(container, items, onPick, first=0){
+  const btns=items.map((it,i)=>{ const b=el("button","btn",it.name); b.type="button"; b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",()=>{ btns.forEach(x=>{x.classList.remove("sel");x.setAttribute("aria-pressed","false");}); b.classList.add("sel"); b.setAttribute("aria-pressed","true"); onPick(it,i); });
+    container.appendChild(b); return b; });
+  if(first!=null) btns[first].click();
+  return btns;
+}
+const fmt = v => (v>0?"+":"")+v;
+
+/* ---------- hero ---------- */
+(function(){
+  const a="GATTACAGCT";
+  $("#heroA").appendChild(alignRows(a,"GAT--CAGCT",["One gap",""],{lblw:"64px"}));
+  $("#heroB").appendChild(alignRows(a,"GA-T-CAGCT",["Two gaps",""],{lblw:"64px"}));
+  $("#heroAs").textContent="One gap of length 2";
+  $("#heroBs").textContent="Two gaps of length 1";
+})();
+
+/* ---------- 2. scheme explorer ---------- */
+const CAND_A="GATTACAGCT", CAND_B="GATCAGCT";
+const CANDS=[
+  {name:"A", desc:"one gap of length 2", A:CAND_A, B:"GAT--CAGCT"},
+  {name:"B", desc:"two gaps of length 1", A:CAND_A, B:"GA-T-CAGCT"},
+  {name:"C", desc:"two gaps and a mismatch", A:CAND_A, B:"G-AT-CAGCT"},
+  {name:"D", desc:"no internal gaps, two end gaps", A:CAND_A, B:"GATCAGCT--"}
+];
+const sliders={match:"#sMatch",ts:"#sTs",tv:"#sTv",open:"#sOpen",ext:"#sExt"};
+const vals={match:"#vMatch",ts:"#vTs",tv:"#vTv",open:"#vOpen",ext:"#vExt"};
+const listeners=[];
+function syncInputs(){ for(const k in sliders){ $(sliders[k]).value=S[k]; $(vals[k]).textContent=fmt(S[k]); } $("#sFree").checked=S.free; }
+function updateAll(){ syncInputs(); listeners.forEach(f=>f()); }
+(function(){
+  const presets=[
+    {name:"Simple: +1 / −1 / −2", s:{match:1,ts:-1,tv:-1,open:-2,ext:-2,free:false}},
+    {name:"Linear gaps", s:{match:2,ts:-1,tv:-1,open:-3,ext:-3,free:false}},
+    {name:"Affine gaps", s:{match:2,ts:-1,tv:-1,open:-5,ext:-1,free:false}},
+    {name:"Transitions cheaper", s:{match:2,ts:-1,tv:-3,open:-5,ext:-1,free:false}},
+    {name:"End gaps free", s:{match:2,ts:-1,tv:-1,open:-5,ext:-1,free:true}}
+  ];
+  const btns=makeTabs($("#presets"),presets,p=>{ Object.assign(S,p.s); updateAll(); },null);
+  for(const k in sliders) $(sliders[k]).addEventListener("input",ev=>{ S[k]=+ev.target.value; btns.forEach(b=>b.classList.remove("sel")); updateAll(); });
+  $("#sFree").addEventListener("change",ev=>{ S.free=ev.target.checked; btns.forEach(b=>b.classList.remove("sel")); updateAll(); });
+
+  function renderCands(){
+    const body=$("#candBody"); body.innerHTML="";
+    const scored=CANDS.map(c=>({...c, r:scoreAln(c.A,c.B,S)}));
+    const opt=gotoh(CAND_A,CAND_B,S);
+    const top=Math.max(...scored.map(c=>c.r.score));
+    scored.forEach(c=>{
+      const tr=el("tr"); if(c.r.score===top) tr.className="win";
+      const td1=el("td"); td1.appendChild(el("b","",c.name)); td1.appendChild(el("div","hint",c.desc));
+      const td2=el("td"); const box=el("div","seqbox mini"); box.appendChild(alignRows(c.A,c.B,["",""],{cols:c.r.cols,lblw:"0px"})); td2.appendChild(box);
+      const td3=el("td","sc",fmt(c.r.score));
+      tr.append(td1,td2,td3); body.appendChild(tr);
+    });
+    const tr=el("tr"); const td1=el("td"); td1.appendChild(el("b","","Optimal")); td1.appendChild(el("div","hint","found by dynamic programming"));
+    const td2=el("td"); const box=el("div","seqbox mini"); box.appendChild(alignRows(opt.A,opt.B,["",""],{cols:scoreAln(opt.A,opt.B,S).cols,lblw:"0px"})); td2.appendChild(box);
+    tr.append(td1,td2,el("td","sc",fmt(opt.score))); body.appendChild(tr);
+    const kind = S.open===S.ext ? "linear (every gap position costs "+S.open+")" : `affine (opening ${S.open}, extension ${S.ext})`;
+    $("#schemeText").textContent=`Current scheme: match ${fmt(S.match)}, transition ${S.ts}, transversion ${S.tv}, gaps ${kind}, end gaps ${S.free?"free":"penalised"}. The numbers under each column show its contribution to the score.`;
+  }
+  listeners.push(renderCands);
+})();
+
+/* ---------- 3. gap chart ---------- */
+(function(){
+  const cv=$("#gapChart"), ctx=cv.getContext("2d");
+  function draw(){
+    const css=getComputedStyle(document.documentElement), c=k=>css.getPropertyValue(k).trim();
+    const W=560,H=320,pl=46,pb=36,pt=14,pr=14, Lmax=10;
+    ctx.clearRect(0,0,W,H);
+    const lin=L=>L*S.open, aff=L=>S.open+(L-1)*S.ext;
+    const minV=Math.min(lin(Lmax),aff(Lmax),-1);
+    const x=L=>pl+(L-1)/(Lmax-1)*(W-pl-pr), y=v=>pt+(v/minV)*(H-pt-pb);
+    ctx.strokeStyle=c("--rule"); ctx.fillStyle=c("--muted"); ctx.font="12px "+c("--sans"); ctx.lineWidth=1;
+    ctx.textAlign="center";
+    for(let L=1;L<=Lmax;L++){ ctx.fillText(L,x(L),H-pb+18); }
+    ctx.fillText("gap length",(W+pl)/2,H-4);
+    ctx.textAlign="right"; ctx.textBaseline="middle";
+    const step=Math.max(1,Math.ceil(-minV/6));
+    for(let v=0;v>=minV;v-=step){ ctx.beginPath(); ctx.moveTo(pl,y(v)); ctx.lineTo(W-pr,y(v)); ctx.stroke(); ctx.fillText(v,pl-6,y(v)); }
+    const line=(f,col)=>{ ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2.5; ctx.beginPath();
+      for(let L=1;L<=Lmax;L++){ const px=x(L),py=y(f(L)); L===1?ctx.moveTo(px,py):ctx.lineTo(px,py); } ctx.stroke();
+      for(let L=1;L<=Lmax;L++){ ctx.beginPath(); ctx.arc(x(L),y(f(L)),3.5,0,7); ctx.fill(); } };
+    line(lin,c("--T")); line(aff,c("--C"));
+    $("#gapText").textContent=`A gap of length 5 costs ${lin(5)} with a linear penalty and ${aff(5)} with an affine penalty. Five separate gaps of length 1 cost ${5*S.open} under either model.`;
+  }
+  listeners.push(draw);
+  if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",draw);
+})();
+
+/* ---------- 4. end gaps ---------- */
+(function(){
+  const frag=HBB.slice(15,27), gene=HBB.slice(0,45);
+  const base={match:1,ts:-1,tv:-1,open:-3,ext:-1};
+  const modes=[
+    {name:"Global: end gaps penalised", s:{...base,free:false}, t:"Global alignment pays for the overhangs, and the algorithm may even break the fragment apart to reduce gap cost."},
+    {name:"Semi-global: end gaps free", s:{...base,free:true}, t:"With free end gaps the fragment lands exactly on its true position, c.16–27, with 12 out of 12 matches."}
+  ];
+  makeTabs($("#endTabs"),modes,md=>{
+    const r=gotoh(frag,gene,md.s), sc=scoreAln(r.A,r.B,md.s);
+    const box=$("#endAln"); box.innerHTML=""; box.appendChild(alignRows(r.A,r.B,["Fragment","Gene"]));
+    const st=$("#endStats"); statsLine(st,[["Matches",sc.mt],["Mismatches",sc.mm],["Gap positions",sc.gp],["Score",fmt(r.score)]]);
+    const d=el("div","",md.t); d.style.flexBasis="100%"; d.style.color="var(--muted)"; st.appendChild(d);
+  });
+})();
+
+/* ---------- 5. exercises ---------- */
+(function(){
+  const EX=[
+    {A:"ACGT-GCA", B:"ACCTAGCA", s:{match:1,ts:-1,tv:-1,open:-2,ext:-2,free:false}, d:"Match +1, mismatch −1, every gap position −2 (linear)."},
+    {A:"GATTACA", B:"GA---CA", s:{match:2,ts:-1,tv:-1,open:-5,ext:-1,free:false}, d:"Match +2, mismatch −1, gap opening −5, gap extension −1 (affine)."},
+    {A:"AGCTTA", B:"GGTTCA", s:{match:2,ts:-1,tv:-2,open:-3,ext:-3,free:false}, d:"Match +2, transition −1, transversion −2, every gap position −3."},
+    {A:"--TACGGA", B:"CATACG--", s:{match:1,ts:-1,tv:-1,open:-4,ext:-1,free:true}, d:"Match +1, mismatch −1, gap opening −4, extension −1, end gaps free."}
+  ];
+  const root=$("#exercises");
+  EX.forEach((ex,i)=>{
+    const r=scoreAln(ex.A,ex.B,ex.s);
+    const d=el("div","ex"); d.appendChild(el("h3","",`Exercise ${i+1}`)); d.appendChild(el("div","scheme",ex.d));
+    const box=el("div","seqbox"); box.appendChild(alignRows(ex.A,ex.B,["Seq 1","Seq 2"])); d.appendChild(box);
+    const row=el("div","btns"); const inp=el("input"); inp.type="number"; inp.setAttribute("aria-label",`Your score for exercise ${i+1}`);
+    const chk=el("button","btn solid","Check"), show=el("button","btn","Show working"); chk.type=show.type="button";
+    const msg=el("div","msg"); msg.setAttribute("role","status");
+    chk.addEventListener("click",()=>{
+      if(inp.value===""){ msg.className="msg bad"; msg.textContent="Enter a number first."; return; }
+      if(+inp.value===r.score){ msg.className="msg ok"; msg.textContent="Correct."; }
+      else { msg.className="msg bad"; msg.textContent="Not yet. Recheck each column, especially where a gap opens or extends."; }
+    });
+    show.addEventListener("click",()=>{
+      box.innerHTML=""; box.appendChild(alignRows(ex.A,ex.B,["Seq 1","Seq 2"],{cols:r.cols}));
+      msg.className="msg"; msg.textContent=`Column scores: ${r.cols.map(fmt).join(" ")} → total ${fmt(r.score)}`;
+    });
+    row.append(inp,chk,show); d.append(row,msg); root.appendChild(d);
+  });
+})();
+
+/* ---------- 6. quiz ---------- */
+(function(){
+  const Q=[
+    {q:"Two alignments of the same pair of sequences are ranked differently by two programs. What is the most likely reason?", o:["One program has a bug","The programs use different scoring schemes","The sequences changed between runs","Alignment scores are random"], a:1, w:"The best alignment is only best relative to a scoring scheme. Different match, mismatch and gap values can change which alignment wins."},
+    {q:"What defines an affine gap penalty?", o:["Every gap position costs the same","Opening a gap costs more than extending it","Gaps are free","Gaps at the ends cost more"], a:1, w:"Affine penalties have two parameters: a larger cost to open a gap and a smaller cost for each additional position."},
+    {q:"What is the biological reason for using affine gap penalties?", o:["Gaps never occur in real sequences","One indel event often inserts or deletes several bases at once","Computers handle affine penalties faster","Transitions are more common than transversions"], a:1, w:"A 3-base deletion is usually one event, not three. Affine penalties make one long gap cheaper than several short ones with the same total length."},
+    {q:"Why do some DNA scoring schemes penalise transversions more than transitions?", o:["Transversions are more common","Transitions are observed more often in real genomes","Transitions change the reading frame","Transversions only occur in RNA"], a:1, w:"Transitions (A↔G, C↔T) occur more often, so a transition mismatch is weaker evidence against relatedness than a transversion."},
+    {q:"You want to find where a 150-base sequencing read sits in a 5,000-base gene. Which approach fits best?", o:["Global alignment with penalised end gaps","Semi-global alignment with free end gaps","Counting identical positions without gaps","Aligning the gene to itself"], a:1, w:"Free end gaps let the short read sit anywhere inside the long gene without paying for the long overhangs."},
+    {q:"With match +1, mismatch −1 and a linear gap penalty of −2 per position, what is the score of an alignment with 5 matches, 2 mismatches and 1 gap position?", o:["+5","+3","+1","−1"], a:2, w:"5 × (+1) + 2 × (−1) + 1 × (−2) = 5 − 2 − 2 = +1."}
+  ];
+  const root=$("#quiz"); let answered=0, correct=0;
+  const big=el("span","big","0 / "+Q.length), sub=el("span","hint","Answer each question to see the explanation.");
+  Q.forEach((it,qi)=>{
+    const d=el("div","q"); d.appendChild(el("h3","",(qi+1)+". "+it.q));
+    const opts=el("div","opts"), why=el("div","why"); why.setAttribute("role","status");
+    const bs=it.o.map((t,oi)=>{ const b=el("button","opt",t); b.type="button";
+      b.addEventListener("click",()=>{
+        bs.forEach(x=>x.disabled=true); bs[it.a].classList.add("right"); if(oi!==it.a) b.classList.add("wrong");
+        why.textContent=(oi===it.a?"Correct. ":"Not quite. ")+it.w;
+        answered++; if(oi===it.a) correct++; big.textContent=correct+" / "+Q.length;
+        if(answered===Q.length){ sub.textContent= correct===Q.length ? "Full marks. You are ready for Module 3: Needleman-Wunsch." : "Review the sections linked to the questions you missed, then try again."; retry.hidden=false; }
+      }); opts.appendChild(b); return b; });
+    d.append(opts,why); root.appendChild(d);
+  });
+  const retry=el("button","btn","Try again"); retry.type="button"; retry.hidden=true;
+  retry.addEventListener("click",()=>{ location.hash="s6"; location.reload(); });
+  const sb=el("div","score"); sb.append(big,sub,retry); root.appendChild(sb);
+})();
+
+/* initial state */
+document.querySelector("#presets .btn").click();
+</script>
+</body>
+</html>
