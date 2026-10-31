@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment 2: Digital Modulation Techniques (MATLAB)</title>
+<style>
+  body{margin:0;background:#1e1e1e;color:#d4d4d4;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 22px;background:#252526;border-bottom:1px solid #3c3c3c;position:sticky;top:0}
+  h1{font-size:16px;margin:0;font-weight:600}
+  h1 small{color:#9d9d9d;font-weight:normal;margin-left:10px}
+  button{background:#0e639c;color:#fff;border:0;border-radius:6px;padding:8px 16px;font:inherit;font-weight:600;cursor:pointer}
+  button:hover{background:#1177bb}
+  pre{margin:0;padding:18px 22px 40px;overflow:auto;font:13.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;tab-size:4}
+  .ln{display:inline-block;width:3.2em;color:#6e7681;text-align:right;margin-right:1.4em;user-select:none}
+  .c{color:#6a9955} .s{color:#ce9178} .k{color:#569cd6}
+</style>
+</head>
+<body>
+<header>
+  <h1>experiment2.m <small>Experiment 2: Digital Modulation Techniques (BPSK, QPSK, 16-QAM)</small></h1>
+  <button id="copy">Copy code</button>
+</header>
+<pre id="code"><span class="ln">1</span><span class="c">%% Experiment 2: Digital Modulation Techniques</span>
+<span class="ln">2</span>clc; clear; close all;
+<span class="ln">3</span>rng(1);                              <span class="c">% Same results every run</span>
+<span class="ln">4</span>
+<span class="ln">5</span>N    = 120000;                       <span class="c">% Divisible by 1, 2 and 4 bits/symbol</span>
+<span class="ln">6</span>data = randi([0 1], N, 1);           <span class="c">% Random binary data</span>
+<span class="ln">7</span>
+<span class="ln">8</span>schemes = {<span class="s">&#x27;BPSK&#x27;</span>, <span class="s">&#x27;QPSK&#x27;</span>, <span class="s">&#x27;16-QAM&#x27;</span>};
+<span class="ln">9</span>M_list  = [2 4 16];
+<span class="ln">10</span>tx      = cell(1, 3);
+<span class="ln">11</span>
+<span class="ln">12</span><span class="c">%% Parts 1-3: Modulation order, bits/symbol, ideal constellations</span>
+<span class="ln">13</span>figure(<span class="s">&#x27;Name&#x27;</span>, <span class="s">&#x27;Ideal Constellations&#x27;</span>);
+<span class="ln">14</span><span class="k">for</span> s = 1:3
+<span class="ln">15</span>    M = M_list(s);
+<span class="ln">16</span>    k = log2(M);                     <span class="c">% Bits per symbol</span>
+<span class="ln">17</span>    tx{s} = modulateBits(data, M);
+<span class="ln">18</span>
+<span class="ln">19</span>    fprintf(<span class="s">&#x27;%-7s: M = %2d,  k = log2(M) = %d bits/symbol,  symbols sent = %d\n&#x27;</span>, ...
+<span class="ln">20</span>            schemes{s}, M, k, N/k);
+<span class="ln">21</span>
+<span class="ln">22</span>    <span class="c">% Ideal points with their bit labels</span>
+<span class="ln">23</span>    labels = dec2bin(0:M-1, k);
+<span class="ln">24</span>    ideal  = modulateBits(reshape((labels - <span class="s">&#x27;0&#x27;</span>).&#x27;, [], 1), M);
+<span class="ln">25</span>
+<span class="ln">26</span>    subplot(1, 3, s);
+<span class="ln">27</span>    plot(real(ideal), imag(ideal), <span class="s">&#x27;bo&#x27;</span>, <span class="s">&#x27;MarkerFaceColor&#x27;</span>, <span class="s">&#x27;b&#x27;</span>); hold on;
+<span class="ln">28</span>    text(real(ideal) + 0.05, imag(ideal) + 0.12, cellstr(labels), <span class="s">&#x27;Color&#x27;</span>, <span class="s">&#x27;r&#x27;</span>, <span class="s">&#x27;FontSize&#x27;</span>, 8);
+<span class="ln">29</span>    grid on; axis equal; axis([-1.5 1.5 -1.5 1.5]);
+<span class="ln">30</span>    xlabel(<span class="s">&#x27;In-phase (I)&#x27;</span>); ylabel(<span class="s">&#x27;Quadrature (Q)&#x27;</span>);
+<span class="ln">31</span>    title(sprintf(<span class="s">&#x27;%s (M = %d, k = %d)&#x27;</span>, schemes{s}, M, k));
+<span class="ln">32</span><span class="k">end</span>
+<span class="ln">33</span>
+<span class="ln">34</span><span class="c">%% Part 4: BER vs SNR for all three schemes</span>
+<span class="ln">35</span>SNR_dB = 0:1:20;
+<span class="ln">36</span>BER    = zeros(3, length(SNR_dB));
+<span class="ln">37</span>BER_th = zeros(3, length(SNR_dB));
+<span class="ln">38</span>
+<span class="ln">39</span><span class="k">for</span> s = 1:3
+<span class="ln">40</span>    M = M_list(s);
+<span class="ln">41</span>    k = log2(M);
+<span class="ln">42</span>    <span class="k">for</span> i = 1:length(SNR_dB)
+<span class="ln">43</span>        rxSig  = awgn(tx{s}, SNR_dB(i), <span class="s">&#x27;measured&#x27;</span>);   <span class="c">% AWGN channel</span>
+<span class="ln">44</span>        rxData = demodulateBits(rxSig, M);             <span class="c">% Demodulate</span>
+<span class="ln">45</span>        [~, BER(s, i)] = biterr(data, rxData);         <span class="c">% Compare &amp; compute BER</span>
+<span class="ln">46</span>    <span class="k">end</span>
+<span class="ln">47</span>    <span class="c">% Theoretical BER (awgn SNR is per symbol, so Eb/N0 = SNR - 10log10(k))</span>
+<span class="ln">48</span>    EbNo = SNR_dB - 10*log10(k);
+<span class="ln">49</span>    <span class="k">if</span> M == 16
+<span class="ln">50</span>        BER_th(s, :) = berawgn(EbNo, <span class="s">&#x27;qam&#x27;</span>, M);
+<span class="ln">51</span>    <span class="k">else</span>
+<span class="ln">52</span>        BER_th(s, :) = berawgn(EbNo, <span class="s">&#x27;psk&#x27;</span>, M, <span class="s">&#x27;nondiff&#x27;</span>);
+<span class="ln">53</span>    <span class="k">end</span>
+<span class="ln">54</span><span class="k">end</span>
+<span class="ln">55</span>
+<span class="ln">56</span>figure(<span class="s">&#x27;Name&#x27;</span>, <span class="s">&#x27;BER vs SNR&#x27;</span>);
+<span class="ln">57</span>colors = {<span class="s">&#x27;b&#x27;</span>, <span class="s">&#x27;g&#x27;</span>, <span class="s">&#x27;r&#x27;</span>};
+<span class="ln">58</span><span class="k">for</span> s = 1:3
+<span class="ln">59</span>    semilogy(SNR_dB, BER(s, :), [colors{s} <span class="s">&#x27;o-&#x27;</span>], <span class="s">&#x27;LineWidth&#x27;</span>, 1.5); hold on;
+<span class="ln">60</span>    semilogy(SNR_dB, BER_th(s, :), [colors{s} <span class="s">&#x27;--&#x27;</span>], <span class="s">&#x27;LineWidth&#x27;</span>, 1);
+<span class="ln">61</span><span class="k">end</span>
+<span class="ln">62</span>grid on; ylim([1e-6 1]);
+<span class="ln">63</span>xlabel(<span class="s">&#x27;SNR (dB)&#x27;</span>); ylabel(<span class="s">&#x27;BER&#x27;</span>);
+<span class="ln">64</span>title(<span class="s">&#x27;BER vs SNR: BPSK, QPSK, 16-QAM over AWGN&#x27;</span>);
+<span class="ln">65</span>legend(<span class="s">&#x27;BPSK sim&#x27;</span>, <span class="s">&#x27;BPSK theory&#x27;</span>, <span class="s">&#x27;QPSK sim&#x27;</span>, <span class="s">&#x27;QPSK theory&#x27;</span>, ...
+<span class="ln">66</span>       <span class="s">&#x27;16-QAM sim&#x27;</span>, <span class="s">&#x27;16-QAM theory&#x27;</span>, <span class="s">&#x27;Location&#x27;</span>, <span class="s">&#x27;southwest&#x27;</span>);
+<span class="ln">67</span>
+<span class="ln">68</span><span class="c">% Comparison at the same SNR</span>
+<span class="ln">69</span>SNR_cmp = 10;
+<span class="ln">70</span>idx = find(SNR_dB == SNR_cmp);
+<span class="ln">71</span>fprintf(<span class="s">&#x27;\nBER at SNR = %d dB:\n&#x27;</span>, SNR_cmp);
+<span class="ln">72</span><span class="k">for</span> s = 1:3
+<span class="ln">73</span>    fprintf(<span class="s">&#x27;  %-7s: %g\n&#x27;</span>, schemes{s}, BER(s, idx));
+<span class="ln">74</span><span class="k">end</span>
+<span class="ln">75</span>
+<span class="ln">76</span><span class="c">%% Part 5: Received constellations at low and high SNR</span>
+<span class="ln">77</span>SNR_low  = 5;
+<span class="ln">78</span>SNR_high = 20;
+<span class="ln">79</span>nPlot    = 3000;
+<span class="ln">80</span>
+<span class="ln">81</span>figure(<span class="s">&#x27;Name&#x27;</span>, <span class="s">&#x27;Received Constellations&#x27;</span>);
+<span class="ln">82</span><span class="k">for</span> s = 1:3
+<span class="ln">83</span>    M  = M_list(s);
+<span class="ln">84</span>    rL = awgn(tx{s}, SNR_low,  <span class="s">&#x27;measured&#x27;</span>);
+<span class="ln">85</span>    rH = awgn(tx{s}, SNR_high, <span class="s">&#x27;measured&#x27;</span>);
+<span class="ln">86</span>    nP = min(nPlot, length(tx{s}));
+<span class="ln">87</span>
+<span class="ln">88</span>    subplot(2, 3, s);
+<span class="ln">89</span>    plot(real(rL(1:nP)), imag(rL(1:nP)), <span class="s">&#x27;b.&#x27;</span>, <span class="s">&#x27;MarkerSize&#x27;</span>, 3); hold on;
+<span class="ln">90</span>    plot(real(tx{s}), imag(tx{s}), <span class="s">&#x27;r*&#x27;</span>, <span class="s">&#x27;MarkerSize&#x27;</span>, 8);
+<span class="ln">91</span>    grid on; axis equal; axis([-2 2 -2 2]);
+<span class="ln">92</span>    title(sprintf(<span class="s">&#x27;%s, SNR = %d dB&#x27;</span>, schemes{s}, SNR_low));
+<span class="ln">93</span>    xlabel(<span class="s">&#x27;I&#x27;</span>); ylabel(<span class="s">&#x27;Q&#x27;</span>);
+<span class="ln">94</span>
+<span class="ln">95</span>    subplot(2, 3, s + 3);
+<span class="ln">96</span>    plot(real(rH(1:nP)), imag(rH(1:nP)), <span class="s">&#x27;b.&#x27;</span>, <span class="s">&#x27;MarkerSize&#x27;</span>, 3); hold on;
+<span class="ln">97</span>    plot(real(tx{s}), imag(tx{s}), <span class="s">&#x27;r*&#x27;</span>, <span class="s">&#x27;MarkerSize&#x27;</span>, 8);
+<span class="ln">98</span>    grid on; axis equal; axis([-2 2 -2 2]);
+<span class="ln">99</span>    title(sprintf(<span class="s">&#x27;%s, SNR = %d dB&#x27;</span>, schemes{s}, SNR_high));
+<span class="ln">100</span>    xlabel(<span class="s">&#x27;I&#x27;</span>); ylabel(<span class="s">&#x27;Q&#x27;</span>);
+<span class="ln">101</span><span class="k">end</span>
+<span class="ln">102</span>
+<span class="ln">103</span><span class="c">%% Part 6: Modulation order vs data rate (fixed symbol rate)</span>
+<span class="ln">104</span>Rs = 1e6;                            <span class="c">% Symbol rate: 1 Msymbol/s (assumed)</span>
+<span class="ln">105</span>k_list = log2(M_list);
+<span class="ln">106</span>Rb = Rs .* k_list;                   <span class="c">% Rb = Rs * log2(M)</span>
+<span class="ln">107</span>
+<span class="ln">108</span>T = table(schemes&#x27;, M_list&#x27;, k_list&#x27;, Rb&#x27;/1e6, ...
+<span class="ln">109</span>    <span class="s">&#x27;VariableNames&#x27;</span>, {<span class="s">&#x27;Scheme&#x27;</span>, <span class="s">&#x27;M&#x27;</span>, <span class="s">&#x27;BitsPerSymbol&#x27;</span>, <span class="s">&#x27;BitRate_Mbps&#x27;</span>});
+<span class="ln">110</span>fprintf(<span class="s">&#x27;\nData rate at Rs = %g Msymbol/s:\n&#x27;</span>, Rs/1e6);
+<span class="ln">111</span>disp(T);
+<span class="ln">112</span>
+<span class="ln">113</span>figure(<span class="s">&#x27;Name&#x27;</span>, <span class="s">&#x27;Data Rate&#x27;</span>);
+<span class="ln">114</span>bar(Rb/1e6);
+<span class="ln">115</span>set(gca, <span class="s">&#x27;XTickLabel&#x27;</span>, schemes);
+<span class="ln">116</span>ylabel(<span class="s">&#x27;Bit rate (Mbps)&#x27;</span>);
+<span class="ln">117</span>title(sprintf(<span class="s">&#x27;Data Rate vs Modulation Order (Rs = %g Msym/s)&#x27;</span>, Rs/1e6));
+<span class="ln">118</span>grid on;
+<span class="ln">119</span>
+<span class="ln">120</span><span class="c">%% ---------- Helper functions (must stay at the end of the file) ----------</span>
+<span class="ln">121</span><span class="k">function</span> y = modulateBits(b, M)
+<span class="ln">122</span>    <span class="k">if</span> M == 16
+<span class="ln">123</span>        y = qammod(b, M, <span class="s">&#x27;InputType&#x27;</span>, <span class="s">&#x27;bit&#x27;</span>, <span class="s">&#x27;UnitAveragePower&#x27;</span>, <span class="k">true</span>);
+<span class="ln">124</span>    <span class="k">else</span>
+<span class="ln">125</span>        y = pskmod(b, M, (M == 4)*pi/4, <span class="s">&#x27;gray&#x27;</span>, <span class="s">&#x27;InputType&#x27;</span>, <span class="s">&#x27;bit&#x27;</span>);
+<span class="ln">126</span>    <span class="k">end</span>
+<span class="ln">127</span><span class="k">end</span>
+<span class="ln">128</span>
+<span class="ln">129</span><span class="k">function</span> b = demodulateBits(y, M)
+<span class="ln">130</span>    <span class="k">if</span> M == 16
+<span class="ln">131</span>        b = qamdemod(y, M, <span class="s">&#x27;OutputType&#x27;</span>, <span class="s">&#x27;bit&#x27;</span>, <span class="s">&#x27;UnitAveragePower&#x27;</span>, <span class="k">true</span>);
+<span class="ln">132</span>    <span class="k">else</span>
+<span class="ln">133</span>        b = pskdemod(y, M, (M == 4)*pi/4, <span class="s">&#x27;gray&#x27;</span>, <span class="s">&#x27;OutputType&#x27;</span>, <span class="s">&#x27;bit&#x27;</span>);
+<span class="ln">134</span>    <span class="k">end</span>
+<span class="ln">135</span><span class="k">end</span></pre>
+<textarea id="raw" hidden>%% Experiment 2: Digital Modulation Techniques
+clc; clear; close all;
+rng(1);                              % Same results every run
+
+N    = 120000;                       % Divisible by 1, 2 and 4 bits/symbol
+data = randi([0 1], N, 1);           % Random binary data
+
+schemes = {&#x27;BPSK&#x27;, &#x27;QPSK&#x27;, &#x27;16-QAM&#x27;};
+M_list  = [2 4 16];
+tx      = cell(1, 3);
+
+%% Parts 1-3: Modulation order, bits/symbol, ideal constellations
+figure(&#x27;Name&#x27;, &#x27;Ideal Constellations&#x27;);
+for s = 1:3
+    M = M_list(s);
+    k = log2(M);                     % Bits per symbol
+    tx{s} = modulateBits(data, M);
+
+    fprintf(&#x27;%-7s: M = %2d,  k = log2(M) = %d bits/symbol,  symbols sent = %d\n&#x27;, ...
+            schemes{s}, M, k, N/k);
+
+    % Ideal points with their bit labels
+    labels = dec2bin(0:M-1, k);
+    ideal  = modulateBits(reshape((labels - &#x27;0&#x27;).&#x27;, [], 1), M);
+
+    subplot(1, 3, s);
+    plot(real(ideal), imag(ideal), &#x27;bo&#x27;, &#x27;MarkerFaceColor&#x27;, &#x27;b&#x27;); hold on;
+    text(real(ideal) + 0.05, imag(ideal) + 0.12, cellstr(labels), &#x27;Color&#x27;, &#x27;r&#x27;, &#x27;FontSize&#x27;, 8);
+    grid on; axis equal; axis([-1.5 1.5 -1.5 1.5]);
+    xlabel(&#x27;In-phase (I)&#x27;); ylabel(&#x27;Quadrature (Q)&#x27;);
+    title(sprintf(&#x27;%s (M = %d, k = %d)&#x27;, schemes{s}, M, k));
+end
+
+%% Part 4: BER vs SNR for all three schemes
+SNR_dB = 0:1:20;
+BER    = zeros(3, length(SNR_dB));
+BER_th = zeros(3, length(SNR_dB));
+
+for s = 1:3
+    M = M_list(s);
+    k = log2(M);
+    for i = 1:length(SNR_dB)
+        rxSig  = awgn(tx{s}, SNR_dB(i), &#x27;measured&#x27;);   % AWGN channel
+        rxData = demodulateBits(rxSig, M);             % Demodulate
+        [~, BER(s, i)] = biterr(data, rxData);         % Compare &amp; compute BER
+    end
+    % Theoretical BER (awgn SNR is per symbol, so Eb/N0 = SNR - 10log10(k))
+    EbNo = SNR_dB - 10*log10(k);
+    if M == 16
+        BER_th(s, :) = berawgn(EbNo, &#x27;qam&#x27;, M);
+    else
+        BER_th(s, :) = berawgn(EbNo, &#x27;psk&#x27;, M, &#x27;nondiff&#x27;);
+    end
+end
+
+figure(&#x27;Name&#x27;, &#x27;BER vs SNR&#x27;);
+colors = {&#x27;b&#x27;, &#x27;g&#x27;, &#x27;r&#x27;};
+for s = 1:3
+    semilogy(SNR_dB, BER(s, :), [colors{s} &#x27;o-&#x27;], &#x27;LineWidth&#x27;, 1.5); hold on;
+    semilogy(SNR_dB, BER_th(s, :), [colors{s} &#x27;--&#x27;], &#x27;LineWidth&#x27;, 1);
+end
+grid on; ylim([1e-6 1]);
+xlabel(&#x27;SNR (dB)&#x27;); ylabel(&#x27;BER&#x27;);
+title(&#x27;BER vs SNR: BPSK, QPSK, 16-QAM over AWGN&#x27;);
+legend(&#x27;BPSK sim&#x27;, &#x27;BPSK theory&#x27;, &#x27;QPSK sim&#x27;, &#x27;QPSK theory&#x27;, ...
+       &#x27;16-QAM sim&#x27;, &#x27;16-QAM theory&#x27;, &#x27;Location&#x27;, &#x27;southwest&#x27;);
+
+% Comparison at the same SNR
+SNR_cmp = 10;
+idx = find(SNR_dB == SNR_cmp);
+fprintf(&#x27;\nBER at SNR = %d dB:\n&#x27;, SNR_cmp);
+for s = 1:3
+    fprintf(&#x27;  %-7s: %g\n&#x27;, schemes{s}, BER(s, idx));
+end
+
+%% Part 5: Received constellations at low and high SNR
+SNR_low  = 5;
+SNR_high = 20;
+nPlot    = 3000;
+
+figure(&#x27;Name&#x27;, &#x27;Received Constellations&#x27;);
+for s = 1:3
+    M  = M_list(s);
+    rL = awgn(tx{s}, SNR_low,  &#x27;measured&#x27;);
+    rH = awgn(tx{s}, SNR_high, &#x27;measured&#x27;);
+    nP = min(nPlot, length(tx{s}));
+
+    subplot(2, 3, s);
+    plot(real(rL(1:nP)), imag(rL(1:nP)), &#x27;b.&#x27;, &#x27;MarkerSize&#x27;, 3); hold on;
+    plot(real(tx{s}), imag(tx{s}), &#x27;r*&#x27;, &#x27;MarkerSize&#x27;, 8);
+    grid on; axis equal; axis([-2 2 -2 2]);
+    title(sprintf(&#x27;%s, SNR = %d dB&#x27;, schemes{s}, SNR_low));
+    xlabel(&#x27;I&#x27;); ylabel(&#x27;Q&#x27;);
+
+    subplot(2, 3, s + 3);
+    plot(real(rH(1:nP)), imag(rH(1:nP)), &#x27;b.&#x27;, &#x27;MarkerSize&#x27;, 3); hold on;
+    plot(real(tx{s}), imag(tx{s}), &#x27;r*&#x27;, &#x27;MarkerSize&#x27;, 8);
+    grid on; axis equal; axis([-2 2 -2 2]);
+    title(sprintf(&#x27;%s, SNR = %d dB&#x27;, schemes{s}, SNR_high));
+    xlabel(&#x27;I&#x27;); ylabel(&#x27;Q&#x27;);
+end
+
+%% Part 6: Modulation order vs data rate (fixed symbol rate)
+Rs = 1e6;                            % Symbol rate: 1 Msymbol/s (assumed)
+k_list = log2(M_list);
+Rb = Rs .* k_list;                   % Rb = Rs * log2(M)
+
+T = table(schemes&#x27;, M_list&#x27;, k_list&#x27;, Rb&#x27;/1e6, ...
+    &#x27;VariableNames&#x27;, {&#x27;Scheme&#x27;, &#x27;M&#x27;, &#x27;BitsPerSymbol&#x27;, &#x27;BitRate_Mbps&#x27;});
+fprintf(&#x27;\nData rate at Rs = %g Msymbol/s:\n&#x27;, Rs/1e6);
+disp(T);
+
+figure(&#x27;Name&#x27;, &#x27;Data Rate&#x27;);
+bar(Rb/1e6);
+set(gca, &#x27;XTickLabel&#x27;, schemes);
+ylabel(&#x27;Bit rate (Mbps)&#x27;);
+title(sprintf(&#x27;Data Rate vs Modulation Order (Rs = %g Msym/s)&#x27;, Rs/1e6));
+grid on;
+
+%% ---------- Helper functions (must stay at the end of the file) ----------
+function y = modulateBits(b, M)
+    if M == 16
+        y = qammod(b, M, &#x27;InputType&#x27;, &#x27;bit&#x27;, &#x27;UnitAveragePower&#x27;, true);
+    else
+        y = pskmod(b, M, (M == 4)*pi/4, &#x27;gray&#x27;, &#x27;InputType&#x27;, &#x27;bit&#x27;);
+    end
+end
+
+function b = demodulateBits(y, M)
+    if M == 16
+        b = qamdemod(y, M, &#x27;OutputType&#x27;, &#x27;bit&#x27;, &#x27;UnitAveragePower&#x27;, true);
+    else
+        b = pskdemod(y, M, (M == 4)*pi/4, &#x27;gray&#x27;, &#x27;OutputType&#x27;, &#x27;bit&#x27;);
+    end
+end</textarea>
+<script>
+document.getElementById('copy').addEventListener('click',async()=>{
+  const b=document.getElementById('copy'),t=document.getElementById('raw').value;
+  try{await navigator.clipboard.writeText(t);b.textContent='Copied!';}
+  catch(e){const r=document.createRange();r.selectNodeContents(document.getElementById('code'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected – press Ctrl+C';}
+  setTimeout(()=>b.textContent='Copy code',2000);
+});
+</script>
+</body>
+</html>
